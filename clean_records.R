@@ -42,45 +42,32 @@ inv_lichen[is.na(inv_lichen$Species),'Binomial'] = inv_lichen[is.na(inv_lichen$S
 fia_lichen$Binomial = str_trim(paste(fia_lichen$GENUS, fia_lichen$SPECIES))
 
 
-# Add unique plot identfier based on lat/lon to inventory data
-unique_locs = unique(inv_lichen[c('DarLongitude','DarLatitude')])
-unique_locs$PlotID = 1:nrow(unique_locs)
-
-inv_lichen2 = merge(inv_lichen, unique_locs)
-
-
-
-#plot_dists = spDists(as.matrix(unique_locs), longlat=T)
-#diag(plot_dists) = NA
-#plot_dists = as.dist(plot_dists)
-#plot_dists[order(plot_dists)][1:100]
-#min(plot_dists, na.rm=T)
-
 # Add habitat category to inventory data
 
 # Make dictionary of words used to describe substrate
-words = unlist(strsplit(inv_lichen$HabSubstrate, ' '))
-words = gsub('[(),.]', '', words)
-words = tolower(words)
-write.csv(unique(words), 'habitat_words.csv')
+# Only run this once
+#words = unlist(strsplit(inv_lichen$HabSubstrate, ' '))
+#words = gsub('[(),.]', '', words)
+#words = tolower(words)
+#write.csv(unique(words), 'habitat_words.csv')
 
 # Read back in manually modified dictionary that codes substrate into: bark, wood, moss, soil, fungi, lichen
-words = read.csv('habitat_words.csv')
-words = subset(words, substrate!='')
+#words = read.csv('habitat_words.csv')
+#words = subset(words, substrate!='')
 
 # Find keywords in substrate descriptions
-sub_list = sapply(inv_lichen$HabSubstrate, function(x) categorize_substrate(x, words))
-num_words = sapply(sub_list, length)
-max(num_words)
-inv_lichen$substrate1 = sapply(sub_list, function(x) x[1])
-inv_lichen$substrate2 = sapply(sub_list, function(x) x[2])
-inv_lichen$substrate3 = sapply(sub_list, function(x) x[3])
-write.csv(inv_lichen[,c('ecatalogue_key','Binomial','HabSubstrate','HabHabitat','substrate1','substrate2','substrate3')], 'inv_substrates.csv', row.names=F)
+# Only run this once
+#sub_list = sapply(inv_lichen$HabSubstrate, function(x) categorize_substrate(x, words))
+#num_words = sapply(sub_list, length)
+#max(num_words)
+#inv_lichen$substrate1 = sapply(sub_list, function(x) x[1])
+#inv_lichen$substrate2 = sapply(sub_list, function(x) x[2])
+#inv_lichen$substrate3 = sapply(sub_list, function(x) x[3])
+#write.csv(inv_lichen[,c('ecatalogue_key','Binomial','HabSubstrate','HabHabitat','substrate1','substrate2','substrate3')], 'inv_substrates.csv', row.names=F)
 
 # Read back in manually modified substrate descritions (for those matching more than on key word)
 substrate = read.csv('inv_substrates_manual.csv')
 inv_lichen = merge(inv_lichen, substrate[,c('ecatalogue_key','substrate')])
-inv_lichen = inv_lichen[,-which(colnames(inv_lichen) %in% c('substrate1','substrate2','substrate3'))] # Drop unnecessary columns
 
 # Indicate whether inventory lichens were sampled from the bark of a standing tree (as in FIA)
 inv_lichen$standing = inv_lichen$substrate=='bark'

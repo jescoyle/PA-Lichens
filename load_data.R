@@ -17,6 +17,6 @@ source(paste0(git_dir, 'project_functions.R'))
 ## Read in data
 
 inv_lichen = read.csv(paste0(derived_dir, 'inv_lichens.csv'))
-inv_lichen = read.csv(paste0(derived_dir, 'fia_lichens.csv'))
+fia_lichen = read.csv(paste0(derived_dir, 'fia_lichens.csv'))
 
 

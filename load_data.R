@@ -12,11 +12,12 @@ fig_dir = 'C:/Users/jrcoyle/Documents/Research/PA-Lichens/Figures/'
 setwd(working_dir)
 
 ## Load functions
-source(paste0(git_dir, 'project_functions.R'))
+source(file.path(git_dir, 'project_functions.R'))
 
 ## Read in data
 
-inv_lichen = read.csv(paste0(derived_dir, 'inv_lichens.csv'))
-fia_lichen = read.csv(paste0(derived_dir, 'fia_lichens.csv'))
+inv_lichen = read.csv(file.path(derived_dir, 'inv_lichens.csv'))
+fia_lichen = read.csv(file.path(derived_dir, 'fia_lichens.csv'))
 
-
+inv_plots = read.csv(file.path(derived_dir, 'inv_plots.csv'))
+fia_plots = read.csv(file.path(derived_dir, 'fia_plots.csv'))

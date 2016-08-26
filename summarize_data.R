@@ -8,23 +8,228 @@ library(sp) # spatial objects
 library(rgdal) # spatial projection
 library(rgeos) # spatial union
 library(lattice) # plotting
-library(reshape) # converting lists, arrays, dataframes
+library(reshape2) # converting lists, arrays, dataframes
+library(vegan) # rarefaction
 
 # Read in color ramp
 blue2red = read.csv('../blue2red_10colramp.txt')
 blue2red = rgb(blue2red, maxColorValue=255)[10:1]
 
-## Convert lichen records to spatial data
+# Define subsets of INV data to analyize based on macrolichen and epiphytes
+inv_subsets = data.frame(all=rep(T, nrow(inv_lichen)), epi=inv_lichen$standing, 
+	macro=inv_lichen$Macro_vs_Micro=='Macrolichen')
+inv_subsets$epi_macro = inv_subsets$epi&inv_subsets$macro
+inv_lichen = cbind(inv_lichen, inv_subsets)
+
+
+
+## Convert lichen records and plots to spatial data
 coordinates(fia_lichen) = c('LON','LAT')
 proj4string(fia_lichen) = CRS('+proj=longlat +ellps=WGS84')
+coordinates(fia_plots) = c('LON','LAT')
+proj4string(fia_plots) = CRS('+proj=longlat +ellps=WGS84')
 coordinates(inv_lichen) = c('DarLongitude','DarLatitude')
 proj4string(inv_lichen) = CRS('+proj=longlat +ellps=WGS84')
+coordinates(inv_plots) = c('DarLongitude','DarLatitude')
+proj4string(inv_plots) = CRS('+proj=longlat +ellps=WGS84')
+
+
+###############################################################
+### Plot based analysis to compare environmental models
+
+
+# Set search radius distance
+D = 5 
+
+
+# For each FIA plot, find all INV plots within D km
+dmat = spDists(fia_plots, inv_plots, longlat=T)
+
+# Find dist between FIA plot and nearest INV plot
+minDs = apply(dmat, 1, min)
+minDs[order(minDs)]
+
+# Find dist between INV plot and nearest FIA plot
+minDs = apply(dmat, 2, min)
+minDs[order(minDs)]
+
+plots_within_D = sapply(1:20, function(D){
+	apply(dmat, 1, function(x) sum(x<=D) )
+})
+
+
+## Calculate species richness in each plot
+fia_splist = sapply(fia_plots$yrplot.id, function(y){
+	these_sp = get_species(subset(fia_lichen, yrplot.id==y)$Binomial)
+	these_sp[order(these_sp)]
+})
+
+fia_plots$S = sapply(fia_splist, length)
+
+
+## Calculate species richness in each plot
+inv_splist = sapply(inv_plots$Site_Number, function(y){
+	these_sp = subset(inv_lichen, Site_Number==y)
+	
+	all = get_species(these_sp[these_sp$all,]$Binomial)
+	all = all[order(all)]
+
+	epi = get_species(these_sp[these_sp$epi,]$Binomial)
+	epi = epi[order(epi)]
+
+	macro = get_species(these_sp[these_sp$macro,]$Binomial)
+	macro = macro[order(macro)]
+
+	epi_macro = get_species(these_sp[these_sp$epi_macro,]$Binomial)
+	epi_macro = epi_macro[order(epi_macro)]
+	
+	list(all = all, epi = epi, macro = macro, epi_macro = epi_macro)
+})
+
+inv_S = t(apply(inv_splist, 1:2, function(x) length(x[[1]])))
+colnames(inv_S) = paste('S', colnames(inv_S), sep='_')
+
+inv_plots = cbind(inv_plots, inv_S)
+
+## Convert species lists to site X species matrices
+species = unique(c(fia_lichen$Binomial,inv_lichen$Binomial))
+species = species[order(species)]
+
+fia_siteXsp = t(sapply(fia_splist, function(x) species %in% x))
+colnames(fia_siteXsp) = species
+inv_siteXsp = apply(inv_splist, 1:2, function(x) species %in% x[[1]])
+inv_siteXsp = aperm(inv_siteXsp, c(2,3,1))
+dimnames(inv_siteXsp)[[2]] = inv_plots$Site_Number
+dimnames(inv_siteXsp)[[3]] = species
+
+
+## Plot richness in FIA vs INV
+
+## Richness estimators from vegan
+
+fia_acc = specaccum(fia_siteXsp, method='exact')
+inv_all_acc = specaccum(inv_siteXsp['all',,], method='exact')
+inv_epi_acc = specaccum(inv_siteXsp['epi',,], method='exact')
+inv_macro_acc = specaccum(inv_siteXsp['macro',,], method='exact')
+inv_em_acc = specaccum(inv_siteXsp['epi_macro',,], method='exact')
+
+pdf(file.path(fig_dir, 'compare_richness_plot_samplerarefaction.pdf'), height=6, width=9)
+
+par(mfrow=c(1,2))
+par(mar=c(4,4,1,1))
+
+# All INV subsets
+make_plot(c(0,210), c(0,525), xlab='Num. Plots', ylab='Num. Species')
+plot(fia_acc, col='red', lwd=2, ci=2, ci.type='polygon', ci.col='#50000050', ci.lty=0, add=T)
+
+text(124, 75, labels='FIA', adj=c(0, 1.1))
+
+plot(inv_all_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
+plot(inv_epi_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
+plot(inv_macro_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
+plot(inv_em_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
+
+text(204, c(513, 263, 188, 98), labels=paste('INV',names(invsets)), adj=c(1,-.2))
+
+# Just compare epiphytc macrolichens
+make_plot(c(0,210), c(0,100), xlab='Num. Plots', ylab='Num. Species')
+
+plot(fia_acc, col='red', lwd=2, ci=2, ci.type='polygon', ci.col='#50000050', ci.lty=0, add=T)
+text(124, 75, labels='FIA', pos=4)
+plot(inv_em_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
+text(204, 98, labels='INV Epiphytic Macrolichens', adj=c(1,-.5))
+
+dev.off()
+
+## Species richness estimators
+comm_mats = list(fia=fia_siteXsp, inv_all=inv_siteXsp['all',,], inv_epi=inv_siteXsp['epi',,], 
+	inv_macro=inv_siteXsp['macro',,], inv_epi_macro=inv_siteXsp['epi_macro',,])
+
+rich_ests = sapply(comm_mats, specpool)
+write.csv(rich_ests, 'richness_estimators_compared.csv')
+
+## Sort 
+
+
+
+
+## OLD FIGURE USING RE-SAMPLING
+reps = 1000
+
+plots_n = seq(5, nrow(fia_plots), 5)
+
+fia_bootS = sapply(plots_n, function(N){
+	replicate(reps, sum(colSums(fia_siteXsp[sample(nrow(fia_plots), N),])>0))
+})
+
+plots_n = seq(5, nrow(inv_plots), 5)
+
+inv_bootS = sapply(plots_n, function(N){
+	replicate(reps, rowSums(apply(inv_siteXsp[,sample(nrow(inv_plots), N),], c(1,3), sum)>0))
+}, simplify='array')
+
+save(fia_bootS, inv_bootS, file='bootstrap_richness.RData')
+
+# Calculate summary stats
+fia_S = apply(fia_bootS, 2, function(x) quantile(x, c(.025, .5, .975)))
+inv_S = apply(inv_bootS, c(1,3), function(x) quantile(x, c(.025, .5, .975)))
+
+# Plot rarefaction
+invsets = c('all','epi','macro','epi_macro')
+names(invsets) = c('All','Epiphytes','Macrolichens','Epiphytic Macrolichens')
+
+pdf(file.path(fig_dir, 'compare_richness_plot_subsampling.pdf'), height=6, width=9)
+
+par(mfrow=c(1,2))
+par(mar=c(4,4,1,1))
+
+# All INV subsets
+make_plot(c(0,210), c(0,525), xlab='Num. Plots', ylab='Num. Species')
+
+xvals = seq(5, nrow(fia_plots), 5)
+polygon(c(xvals, rev(xvals)), c(fia_S['2.5%',],rev(fia_S['97.5%',])),col='#50000050', border=NA)
+lines(xvals, fia_S['50%',], lwd=2, col='red')
+text(xvals[length(xvals)], fia_S['2.5%',length(xvals)], labels='FIA', adj=c(0, 1.1))
+
+xvals = seq(5, nrow(inv_plots), 5)
+
+for(i in invsets){
+	polygon(c(xvals, rev(xvals)), c(inv_S['2.5%',i,], rev(inv_S['97.5%',i,])),col='#00005050', border=NA)
+	lines(xvals, inv_S['50%',i,], lwd=2, col='blue')
+}
+
+text(xvals[length(xvals)], inv_S['97.5%',,length(xvals)], labels=paste('INV',names(invsets)), adj=c(1,-.2))
+
+# Just compare epiphytc macrolichens
+make_plot(c(0,210), c(0,100), xlab='Num. Plots', ylab='Num. Species')
+
+xvals = seq(5, nrow(fia_plots), 5)
+polygon(c(xvals, rev(xvals)), c(fia_S['2.5%',],rev(fia_S['97.5%',])),col='#50000050', border=NA)
+lines(xvals, fia_S['50%',], lwd=2, col='red')
+text(xvals[length(xvals)], fia_S['50%',length(xvals)], labels='FIA', pos=4)
+
+xvals = seq(5, nrow(inv_plots), 5)
+
+polygon(c(xvals, rev(xvals)), c(inv_S['2.5%','epi_macro',], rev(inv_S['97.5%','epi_macro',])),col='#00005050', border=NA)
+lines(xvals, inv_S['50%','epi_macro',], lwd=2, col='blue')
+
+text(xvals[length(xvals)], inv_S['97.5%','epi_macro',length(xvals)], labels='INV Epiphytic Macrolichens', adj=c(1,-.2))
+
+dev.off()
+
+
+
+
+
+
+################################################################
+### Grid based analysis to compare species richness and composition across space
 
 ### Create grid across Pennsylvania
 
 # Load ecoregions
 eco = readOGR('pa_eco', 'pa')
-eco_ll = spTransform(eco, CRS('+proj=longlat +datum=NAD83')) # Convert to lat/lon but keep original datum
+eco_ll = spTransform(eco, CRS('+proj=longlat')) # Convert to lat/lon 
 
 # Make outline of PA
 pa_outline = gUnionCascaded(eco)
@@ -61,11 +266,6 @@ inv_aea = spTransform(inv_lichen,  CRS(myproj))
 # Make grid
 bounds = bbox(pa_outline_aea)
 widths = c(25000,50000,100000)
-
-# Define subsets of INV data to analyize
-inv_subsets = data.frame(all=rep(T, nrow(inv_lichen)), epi=inv_lichen$standing, 
-	macro=inv_lichen$Macro_vs_Micro=='Macrolichen')
-inv_subsets$epi_macro = inv_subsets$epi&inv_subsets$macro
 
 pa_grids = sapply(widths, function(w){
 	ncells = ceiling(apply(bounds, 1, diff)/w)
@@ -144,12 +344,12 @@ plot_cols = rev(c('fia','inv_all','inv_epi','inv_macro','inv_epi_macro'))
 plot_cols_names = rev(c('FIA','INV','INV (epiphytes)','INV (macrolichens)','INV (epiphytic macrolichens)'))
 
 # Define other elements of plot (PA outline, site locations)
-use_layout = list(list('sp.polygons', pa_outline_aea, col='grey70', first=F),
+use_layout = list(list('sp.polygons', pa_outline_aea, col='black', first=F),
 	list('sp.points', fia_aea, which=5, col='red', pch=3, cex=.5),
 	list('sp.points', inv_aea, which=1:4, col='red', pch=3, cex=.5)
 )
 
-pdf(paste0(fig_dir, 'Num records inv vs fia plots grid.pdf'), height=11, width=8.5)
+pdf(file.path(fig_dir, 'Num records inv vs fia plots grid.pdf'), height=11, width=8.5)
 for(w in as.character(widths/1000)){
 	# Select grid
 	this_grid = pa_grids[[w]]
@@ -159,7 +359,7 @@ for(w in as.character(widths/1000)){
 	use_cuts = 10
 	while(use_cuts[length(use_cuts)] < maxrecs) use_cuts = c(use_cuts, 2*use_cuts[length(use_cuts)])
 	use_cuts = c(-1,0,use_cuts)
-	use_col = colorRampPalette(blue2red[c(1:4,6:7)])(length(use_cuts))
+	use_col = c('#FFFFFF', colorRampPalette(blue2red[c(1:4,6:7)])(length(use_cuts)-1))
 
 	print(
 	spplot(this_grid, plot_cols, col='transparent', sp.layout=use_layout, layout=c(2,3), skip=c(F,T,F,F,F,F),
@@ -173,7 +373,7 @@ dev.off()
 ## Plot number of species
 plot_cols = paste('S', plot_cols, sep='_')
 
-pdf(paste0(fig_dir, 'Richness inv vs fia plots grid.pdf'), height=11, width=8.5)
+pdf(file.path(fig_dir, 'Richness inv vs fia plots grid.pdf'), height=11, width=8.5)
 for(w in as.character(widths/1000)){
 	# Select grid
 	this_grid = pa_grids[[w]]
@@ -183,7 +383,7 @@ for(w in as.character(widths/1000)){
 	use_cuts = 5
 	while(use_cuts[length(use_cuts)] < maxrecs) use_cuts = c(use_cuts, 2*use_cuts[length(use_cuts)])
 	use_cuts = c(-1,0,use_cuts)
-	use_col = colorRampPalette(blue2red[c(1:4,6:7)])(length(use_cuts))
+	use_col = c('#FFFFFF', colorRampPalette(blue2red[c(1:4,6:7)])(length(use_cuts)-1))
 
 	print(
 	spplot(this_grid, plot_cols, col='transparent', sp.layout=use_layout, layout=c(2,3), skip=c(F,T,F,F,F,F),
@@ -195,7 +395,70 @@ for(w in as.character(widths/1000)){
 dev.off()
 
 
+## Plot richness in FIA vs INV
+
+
+# A samplers curves
+
+
+
 ## Compare species lists of FIA vs epiphytic macrolichens in inventory
+
+splists_partition = sapply(c('macro','epi_macro'), function(set){
+
+	sapply(as.character(widths/1000), function(w){
+		inv_splist = pa_splists['INV',w][[1]][,set]
+		fia_splist = pa_splists['FIA',w][[1]]
+
+		both_splist = unique(unlist(c(inv_splist, fia_splist)))
+		both_splist = both_splist[order(both_splist)]
+
+		sp_arr = array(FALSE, dim=c(length(both_splist), length(inv_splist), 2), 
+			dimnames = list(species = both_splist, cell = 1:length(inv_splist), data = c('FIA','INV'))
+		)
+
+		for(i in 1:length(inv_splist)){
+			fia = fia_splist[[i]]
+			inv = inv_splist[[i]]
+			both = unique(c(fia, inv))
+			if(length(both) > 1) sp_arr[both,i,] = t(sapply(both, function(x) c(find_species(x, fia),find_species(x, inv))))
+		}
+		sp_arr
+	})
+
+})
+
+
+# Compare number of cells each species is found in by data set
+compare_ncells = apply(splists_partition['100','macro'], c(1,3), sum)
+write.csv(compare_ncells, paste0(fig_dir, 'macro_species_freq_across_100km_cells.csv'), row.names=T)
+
+sp_overlap = sapply(splists_partition['100',], function(x){
+	# Tally whether each species is present in one or both data sets
+	sp_cat = colSums(t(apply(x, c(1,3), sum) > 0) * c(10,1))
+	tally = table(sp_cat)
+	names(tally) = c('INV','FIA','BOTH')
+	tally[c('INV','BOTH','FIA')]
+})
+
+pdf(paste0(fig_dir,'species_overlap_100km_cells.pdf'), height=4, width=4)
+par(mar=c(3,4,1,1))
+bp = barplot(sp_overlap, las=1, legend=T, args.legend = list(bty='n'), ylab='Number of Species',
+	col=c('grey60','grey80','white'), names.arg = c('Macrolichens','Epiphytic Macrolichens'))
+
+midpoints = apply(sp_overlap, 2, function(x){
+	x = c(0,x)
+	sapply(2:length(x), function(i) x[i]/2 + sum(x[1:(i-1)]))
+})
+text(bp, t(midpoints), labels=sp_overlap)
+dev.off()
+
+
+
+
+
+
+
 
 
 

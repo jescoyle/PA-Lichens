@@ -10,7 +10,9 @@ library(rgeos) # spatial union
 library(lattice) # plotting
 library(reshape2) # converting lists, arrays, dataframes
 library(vegan) # rarefaction
-library(maptools)
+library(maptools) # unionSpatialPolygons
+library(stringr) # str_trim
+library(mgcv) # gam
 
 # Read in color ramp
 blue2red = read.csv('../blue2red_10colramp.txt')
@@ -151,12 +153,277 @@ rich_ests = sapply(comm_mats, specpool)
 write.csv(rich_ests, 'richness_estimators_compared.csv')
 
 
+##################################
+### Environmental Models
 
 
+xvars = c('ppt','vpdmax','tmax','tmean','tot_n','tot_s')
+xvarnames = expression('Annual precipitation (mm)', 'Max. VPD (kPa)', 'Max. temperature'~(degree~C),
+	'Mean temperature'~(degree~C), 'Total N deposition'~(kg~ha^-1), 'Total S deposition'~(kg~ha^-1))
+names(xvarnames) = xvars
+
+fia_data = fia_plots@data
+inv_data = inv_plots@data
+rownames(inv_data) = inv_data$Site_Number
+
+pdf(file.path(fig_dir, 'richness_env.pdf'), height=9, width=18)
+layout(matrix(1:(3*length(xvars)), nrow=3, byrow=F))
+par(mar=c(1.5,1.5,1,1))
+par(oma=c(3,4.5,0,0))
+for(x in xvars){
+	use_xlim = range(c(fia_data[,x], inv_data[,x]))
+	
+	plot(fia_data[,x], fia_data$S, las=1, xlim=use_xlim, xlab='', ylab='')
+	if(x==xvars[1]) mtext('FIA Num. Species', 2, 3)
+
+	xvals = data.frame(seq(min(fia_data[,x]), max(fia_data[,x]), length.out=100))
+	names(xvals)=x
+	mod = gam(bquote(S~s(.(as.name(x)))), data=fia_data, family=nb(link='log'))
+	lines(xvals[,1], predict(mod, newdata=xvals, type='response'), col=2)
+
+	plot(inv_data[,x], inv_data$S_epi_macro, las=1, xlim=use_xlim, xlab='', ylab='')
+	if(x==xvars[1]) mtext('INV Epiphytic Macroclichen\nNum. Species', 2, 3)
+
+	xvals = data.frame(seq(min(inv_data[,x]), max(inv_data[,x]), length.out=100))
+	names(xvals)=x
+	mod = gam(bquote(S_epi_macro~s(.(as.name(x)))), data=inv_data, family=nb(link='log'))
+	lines(xvals[,1], predict(mod, newdata=xvals, type='response'), col=2)	
+
+	plot(inv_data[,x], inv_data$S_epi, las=1, xlim=use_xlim)
+	mtext(xvarnames[x], 1, 3)
+	if(x==xvars[1]) mtext('INV Epiphyte\nNum. Species', 2, 3)
+
+
+	mod = gam(bquote(S_epi~s(.(as.name(x)))), data=inv_data, family=nb(link='log'))
+	lines(xvals[,1], predict(mod, newdata=xvals, type='response'), col=2)
+
+}
+dev.off()
+
+
+### RDA
+
+## Things to evaluate in RDA
+# 1. Explanatory power of each env variable and ecoregion
+# 2. Variance partitioning
+
+
+### NMDS
+### From Will-wolf et al 2006:
+### Unconstrained NMS with Sorenson dissimilarity 
+### Exclude species found at < 3 plots
+### Exclude outlier plots with >2.5 std dev away from avg pairwise Sorensen distance
+### Standardized by total abundance
+### 3 axes
+### Pearson and kendall correlations with ordination acxes
+
+# Make community data matrices
+fia_comm = fia_siteXsp[,colSums(fia_siteXsp)>0]
+inv_em_comm = inv_siteXsp['epi_macro',,]
+inv_em_comm = inv_em_comm[, colSums(inv_em_comm)>0]
+inv_e_comm = inv_siteXsp['epi',,]
+inv_e_comm = inv_e_comm[,colSums(inv_e_comm)>0]
+
+# Remove species occuring fewer than 3 time
+dim(fia_comm) #75
+fia_comm = fia_comm[,colSums(fia_comm)>2]; dim(fia_comm) # 37 species, lost 38
+
+dim(inv_e_comm) # 263
+inv_e_comm = inv_e_comm[,colSums(inv_e_comm)>2]; dim(inv_e_comm) # 146 species, lost 137
+inv_e_comm = inv_e_comm[rowSums(inv_e_comm)>0,]; dim(inv_e_comm) # 193 plots, lost 12
+
+dim(inv_em_comm) # 98
+inv_em_comm = inv_em_comm[,colSums(inv_em_comm)>2]; dim(inv_em_comm) # 55 species, lost 43
+inv_em_comm = inv_em_comm[rowSums(inv_em_comm)>0,]; dim(inv_em_comm) # 185 plots, lost 20
+
+# Run analyses with data subset to the same size as FIA
+# NOTE: when saving files, names have _subsample added to them
+nplots = nrow(fia_comm)
+inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
+inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
+
+# Calculate Sorenson dissimilarity to view outliers
+# None need to be excluded
+fact = 2.5
+
+fia_dist = 1-vegdist(fia_dat, method='bray')
+which(rowMeans(as.matrix(fia_dist)) > mean(fia_dist) + fact*sqrt(var(fia_dist)))
+
+inv_e_dist = 1-vegdist(inv_e_dat, method='bray')
+which(rowMeans(as.matrix(inv_e_dist)) > mean(inv_e_dist) + fact*sqrt(var(inv_e_dist)))
+
+inv_em_dist = 1-vegdist(inv_em_dat, method='bray')
+which(rowMeans(as.matrix(inv_em_dist)) > mean(inv_em_dist) + fact*sqrt(var(inv_em_dist)))
+
+
+fia_mds = metaMDS(fia_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+fia_ef = envfit(fia_mds, fia_data[,c(xvars,'L2NAME')], choices=1:4)
+fia_surf = sapply(xvars, function(x){
+	mod12 = eval(bquote(with(fia_data, ordisurf(fia_mds, .(as.name(x)), choices=1:2))))
+	mod34 = eval(bquote(with(fia_data, ordisurf(fia_mds, .(as.name(x)), choices=3:4))))
+	list(mod12=mod12, mod34=mod34)
+})
+fia_ad = sapply(c(xvars, 'L2NAME'), function(x){
+	eval(bquote(adonis(fia_comm ~ .(as.name(x)), fia_data, method='bray')))
+})
+
+fia_ss = scores(fia_mds, 'sites', choices=1:4) # Oksanen suggests not doing this.
+fia_cor = cor(fia_comm, fia_ss, method='kendall')
+
+
+inv_e_mds = metaMDS(inv_e_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+inv_e_ef = envfit(inv_e_mds, inv_data[rownames(inv_e_comm),c(xvars,'L2NAME')], choices=1:4)
+inv_e_surf = sapply(xvars, function(x){
+	mod12 = eval(bquote(with(inv_data[rownames(inv_e_comm),], ordisurf(inv_e_mds, .(as.name(x)), choices=1:2))))
+	mod34 = eval(bquote(with(inv_data[rownames(inv_e_comm),], ordisurf(inv_e_mds, .(as.name(x)), choices=3:4))))
+	list(mod12=mod12, mod34=mod34)
+})
+inv_e_ad = sapply(c(xvars, 'L2NAME'), function(x){
+	eval(bquote(adonis(inv_e_comm ~ .(as.name(x)), inv_data[rownames(inv_e_comm),], method='bray')))
+})
+inv_e_ss = scores(inv_e_mds, 'sites', choices=1:4) # Oksanen suggests not doing this.
+inv_e_cor = cor(inv_e_comm, inv_e_ss, method='kendall')
+
+
+inv_em_mds = metaMDS(inv_em_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+inv_em_ef = envfit(inv_em_mds, inv_data[rownames(inv_em_comm),c(xvars,'L2NAME')], choices=1:4)
+inv_em_surf = sapply(xvars, function(x){
+	mod12 = eval(bquote(with(inv_data[rownames(inv_em_comm),], ordisurf(inv_em_mds, .(as.name(x)), choices=1:2))))
+	mod34 = eval(bquote(with(inv_data[rownames(inv_em_comm),], ordisurf(inv_em_mds, .(as.name(x)), choices=3:4))))
+	list(mod12=mod12, mod34=mod34)
+})
+inv_em_ad = sapply(c(xvars, 'L2NAME'), function(x){
+	eval(bquote(adonis(inv_em_comm ~ .(as.name(x)), inv_data[rownames(inv_em_comm),], method='bray')))
+})
+inv_em_ss = scores(inv_em_mds, 'sites', choices=1:4) # Oksanen suggests not doing this.
+inv_em_cor = cor(inv_em_comm, inv_em_ss, method='kendall')
+
+# Save NMDS objects for future analyses
+#save(fia_mds, inv_e_mds, inv_em_mds, file=file.path(working_dir, 'NMDS_results_subsample.RData'))
+
+## Compare data sets
+
+# Environmental correlations
+compare_ef = data.frame(FIA_r2 = c(fia_ef$vectors$r, fia_ef$factors$r), FIA_P = c(fia_ef$vectors$pvals, fia_ef$factors$pvals),
+	INV_epi_r2 = c(inv_e_ef$vectors$r, inv_e_ef$factors$r), INF_epi_P = c(inv_e_ef$vectors$pvals, inv_e_ef$factors$pvals),
+	INV_em_r2 = c(inv_em_ef$vectors$r, inv_em_ef$factors$r), INF_em_P = c(inv_em_ef$vectors$pvals, inv_em_ef$factors$pvals)
+)
+#write.csv(compare_ef, file.path(working_dir, 'compare_envfit_nmds_subsample.csv'))
+
+# Explore non-linearity through plots
+pdf(file.path(fig_dir, 'env_surfaces_nmds_subsample.pdf'), height=9, width=6)
+par(mfrow=c(3, 2))
+par(mar=c(4,4,1,1))
+par(oma=c(0,3,3,0))
+for(x in xvars){
+	
+	# FIA
+	plot(fia_mds, display='sites',choices=1:2, las=1)
+	plot(fia_surf['mod12',x][[1]], add=T)
+	mtext('FIA', 2, 5)
+	plot(fia_mds, display='sites',choices=3:4, las=1)
+	plot(fia_surf['mod34',x][[1]], add=T)
+
+	# INV EM
+	plot(inv_em_mds, display='sites',choices=1:2, las=1)
+	plot(inv_em_surf['mod12',x][[1]], add=T)
+	mtext('INV Epiphytic Macrolichens', 2, 5)
+	plot(inv_em_mds, display='sites',choices=3:4, las=1)
+	plot(inv_em_surf['mod34',x][[1]], add=T)
+
+	# INV E
+	plot(inv_e_mds, display='sites',choices=1:2, las=1)
+	plot(inv_e_surf['mod12',x][[1]], add=T)
+	mtext('INV Epiphytic Lichens', 2, 5)
+	plot(inv_e_mds, display='sites',choices=3:4, las=1)
+	plot(inv_e_surf['mod34',x][[1]], add=T)
+
+	mtext(xvarnames[x], 3, 0, outer=T)
+}
+
+dev.off()
+
+# Multivariate ANOVA
+fia_aov = t(sapply(c(xvars, 'L2NAME'), function(x) fia_ad['aov.tab',x][[1]][1,]))
+inv_em_aov = t(sapply(c(xvars, 'L2NAME'), function(x) inv_em_ad['aov.tab',x][[1]][1,]))
+inv_e_aov = t(sapply(c(xvars, 'L2NAME'), function(x) inv_e_ad['aov.tab',x][[1]][1,]))
+
+cbind(fia_aov[,'R2'], inv_em_aov[,'R2'], inv_e_aov[,'R2'])
+
+#write.csv(fia_aov, file.path(working_dir, 'fia_adonis.csv'))
+#write.csv(inv_em_aov, file.path(working_dir, 'inv_em_adonis_subsample.csv'))
+#write.csv(inv_e_aov, file.path(working_dir, 'inv_e_adonis_subsample.csv'))
+
+
+#### Species Distributions
+
+# Focus on macrolichen species occuring on at least 6 sites in both datasets
+inv_m_comm = inv_siteXsp['macro',,]
+inv_m_comm = inv_m_comm[,colSums(inv_m_comm)>=6]
+fia_comm = fia_siteXsp[,colSums(fia_siteXsp)>=6]
+focal_sp = colnames(fia_comm)[colnames(fia_comm) %in% colnames(inv_m_comm)] # 15 species
+focal_names = sapply(focal_sp, function(x) paste(unlist(strsplit(x, ' ')), collapse='_'))
+
+# Add species occurences to dataframes for modeling
+fia_sp = fia_comm[,focal_sp]; colnames(fia_sp) = focal_names
+fia_data = cbind(fia_data, fia_sp)
+inv_sp = inv_m_comm[,focal_sp]; colnames(inv_sp) = focal_names
+inv_data = cbind(inv_data, inv_sp)
+
+# Change species names to better variable names
+
+pdf(file.path(fig_dir, 'species_distributions_singlevars.pdf'), height=18, width=18)
+par(lend=1)
+par(mfrow=c(5, length(xvars)))
+par(mar=c(3, 3, 3, 1))
+par(oma=c(2, 15, 0, 0))
+
+for(sp in focal_names){
+for(x in xvars){
+	counter = which(focal_names==sp)
+
+	fia_mod = gam(bquote(.(as.name(sp)) ~ s(.(as.name(x)), k=4)), data=fia_data, family=binomial(link='logit'))
+	inv_mod = gam(bquote(.(as.name(sp)) ~ s(.(as.name(x)), k=4)), data=inv_data, family=binomial(link='logit'))
+
+	xrange = range(c(fia_data[,x], inv_data[,x]))
+	
+	# FIA
+	make_plot(xrange, c(0,1), xlab=ifelse(counter%%5==0, xvarnames[x], ''))
+	points(inv_data[,x], inv_data[,sp], pch='|', col='#0000ff90')
+	xvals = data.frame(seq(min(inv_data[,x]), max(inv_data[,x]), length.out=100))
+	names(xvals)=x
+	fia_pred = predict(fia_mod, newdata=xvals, type='response', se.fit=T)
+	polygon(c(xvals[,1], rev(xvals[,1])), c(fia_pred$fit-fia_pred$se.fit, rev(fia_pred$fit+fia_pred$se.fit)),
+		col='#0000ff50', border=NA)
+	use_lty = ifelse(summary(fia_mod)$s.table[1,4] < 0.05, 1, 3)
+	lines(xvals[,1], fia_pred$fit, col='blue', lwd=2, lty=use_lty)
+
+	# INV
+	points(fia_data[,x], fia_data[,sp], pch='|', col='#ff000090')
+	xvals = data.frame(seq(min(fia_data[,x]), max(fia_data[,x]), length.out=100))
+	names(xvals)=x
+	inv_pred = predict(inv_mod, newdata=xvals, type='response', se.fit=T)
+	polygon(c(xvals[,1], rev(xvals[,1])), c(inv_pred$fit-inv_pred$se.fit, rev(inv_pred$fit+inv_pred$se.fit)),
+		col='#ff000050', border=NA)
+	use_lty = ifelse(summary(inv_mod)$s.table[1,4] < 0.05, 1, 3)
+	lines(xvals[,1],inv_pred$fit, col='red', lwd=2, lty=use_lty)
+
+	mtext(paste('FIA prop. explained dev:', format(summary(fia_mod)$dev.expl, digits=2)), 3, 1, col='blue', adj=0, cex=0.8)
+	mtext(paste('INV prop. explained dev:', format(summary(inv_mod)$dev.expl, digits=2)), 3, 0, col='red', adj=0, cex=0.8)
+
+	if(x==xvars[1]){
+		mtext('Prob. occurence', 2, 2.5, cex=0.8)	
+		par(xpd=NA)
+		text(750, 0.5, labels=focal_sp[counter], adj=1, cex=1.2)
+		par(xpd=F)
+	}
+}
+}
+dev.off()
 
 
 ################################################################
-### Grid based analysis to compare species richness and composition across space
+### Comparison of species richness and composition across space
 
 ### Create grid across Pennsylvania
 
@@ -190,6 +457,9 @@ inv_sptab$Site_Number = inv_lichen$Site_Number
 eco_L2$invrecs = sapply(eco_L2$L2CODE, function(x) nrow(subset(inv_sptab, L2CODE==x)))
 eco_L2$invplots = sapply(eco_L2$L2CODE, function(x) length(unique(subset(inv_sptab, L2CODE==x)$Site_Number)))
 
+# Assign plots to ecoregions
+fia_plots$L2NAME = over(fia_plots, eco_L2)$L2_NAME
+inv_plots$L2NAME = over(inv_plots, eco_L2)$L2_NAME
 
 # Add points from FIA and INV plots to maps
 use_layout = list(list('sp.points', fia_plots, which=c(1,3), col='deeppink', pch=3, cex=.5),
@@ -200,14 +470,14 @@ pdf(file.path(fig_dir,'Num records inv vs fia plots.pdf'), height=6, width=4)
 par(lend=1)
 spplot(eco_L2, c('fiarecs','invrecs'), col='black', sp.layout=use_layout,
 	col.regions=blue2red, cuts=length(blue2red)-1, colorkey=list(at=seq(0,5000, 500)),
-	strip=strip.custom(factor.levels=c('INV','FIA'), bg='white'))
+	strip=strip.custom(factor.levels=c('FIA','INV'), bg='white'))
 dev.off()
 
 pdf(file.path(fig_dir,'Num plots inv vs fia plots.pdf'), height=6, width=4)
 par(lend=1)
 spplot(eco_L2, c('fiaplots','invplots'), col='black', sp.layout=use_layout,
 	col.regions=blue2red, cuts=length(blue2red)-1, colorkey=list(at=seq(0,200,20), tick.number=10),
-	strip=strip.custom(factor.levels=c('INV','FIA'), bg='white'))
+	strip=strip.custom(factor.levels=c('FIA','INV'), bg='white'))
 dev.off()
 
 
@@ -316,15 +586,93 @@ comp_splists_reg = sapply(regions, function(reg){
 		both_not_epi = both_not_epi)
 })
 
+## Compare species lists for the entire data set
+fia_sp = colSums(fia_siteXsp)[colSums(fia_siteXsp)>0]
+em_sp = colSums(inv_siteXsp['epi_macro',,])[colSums(inv_siteXsp['epi_macro',,])>0]
+macro_sp = colSums(inv_siteXsp['macro',,])[colSums(inv_siteXsp['macro',,])>0]
 
-### WORKING HERE
+both = names(fia_sp)[names(fia_sp) %in% names(macro_sp)]
+fia = names(fia_sp)[!(names(fia_sp) %in% names(macro_sp))]
+inv = names(em_sp)[!names(em_sp) %in% names(fia_sp)]
+use_sp = get_species(c(fia, inv, both))
+fia = fia[fia %in% use_sp]
+inv = inv[inv %in% use_sp]
+both_not_epi = both[!both %in% names(em_sp)]
+
+comp_splists = list(fia = fia_sp[fia], inv = macro_sp[inv], both = data.frame(fia=fia_sp[both], inv=macro_sp[both]), 
+		both_not_epi = both_not_epi)
+
+
+## Barplot across regions
+comp_counts_reg = apply(comp_splists_reg, 1:2, function(x) length(unlist(x)))
+comp_counts_reg['both',] = comp_counts_reg['both',]/2
+
+# Proportion of species pool in each data set
+plot_data = comp_counts_reg[c('inv','both','fia'),]
+prop_sp = t(plot_data)/colSums(plot_data)
+comp_counts = sapply(comp_splists, function(x) length(unlist(x)))
+comp_counts['both'] = comp_counts['both']/2
+prop_sp = rbind(prop_sp, ALL=comp_counts[c('inv','both','fia')] / sum(comp_counts[c('inv','both','fia')]))
+
+write.csv(prop_sp, file.path(working_dir, 'proportion_species_across_datasets.csv'))
+
+pdf(file.path(fig_dir, 'compare_species_cross_region.pdf'), height=3, width=8.5)
+par(mar=c(4.5,19,1,1.5))
+barplot( comp_counts_reg[c('inv','both','fia'),], horiz=T, las=1, xlim=c(0,100),
+	legend.text=c('INV','BOTH','FIA'), xlab='Num. Species', 
+	args.legend=list(x='topright', horiz=T, bty='n'))
+dev.off()
+
+## Write out species list tables with indication of which regions found in
+
+# INV-only species
+inv = data.frame(All=comp_splists$inv)
+inv_reg = by(inv_siteXsp['macro',,rownames(inv)], inv_plots$L2NAME, colSums)
+inv = cbind(inv, sapply(regions, function(reg) inv_reg[[reg]]))		
+
+# Which ones are targeted by FIA (but not found)?
+setwd(working_dir)
+fia_ref = read.csv('REF_LICHEN_SPECIES.csv')
+fia_ref$Binomial = str_trim(paste(fia_ref$GENUS, fia_ref$SPECIES))
+
+taxa_mapper = read.csv('C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/FIA_TAXONOMY_conversion.csv')
+change_taxa = subset(taxa_mapper, FIA_NAME!=INVENTORY_NAME)
+for(i in 1:nrow(change_taxa)){
+	fia_ref[fia_ref$Binomial==change_taxa[i,'FIA_NAME'],'Binomial'] = change_taxa[i,'INVENTORY_NAME']
+}
+inv$FIA_targeted = rownames(inv) %in% fia_ref$Binomial
+
+
+# FIA-only species
+fia = data.frame(All=comp_splists$fia)
+fia_reg = by(fia_siteXsp[,rownames(fia)], fia_plots$L2NAME, colSums)
+fia = cbind(fia, sapply(regions, function(reg) fia_reg[[reg]]))
+
+# Found in both lists, include Chi-sq
+
+comp_chisq = function(Nfia, Ninv, Tfia, Tinv){
+	tab = matrix(c(Tfia-Nfia, Nfia, Tinv-Ninv, Ninv), nrow=2) 
+
+	sr <- rowSums(tab)
+      sc <- colSums(tab)
+      E <- outer(sr, sc, "*")/sum(tab)
+	any(E < 5)
+
+	chitest = chisq.test(tab)
+	c(Chi_sq=as.numeric(chitest$statistic), P=as.numeric(chitest$p.value), use_P=all(E >= 5))
+}
+
+both = comp_splists$both
+both = cbind(both, t(sapply(1:nrow(both), function(i) comp_chisq(both[i,1], both[i,2], nrow(fia_siteXsp), dim(inv_siteXsp)[2]))))
+
+# Write out tables
+write.csv(inv, file.path(working_dir, 'INV_only_species.csv'))
+write.csv(fia, file.path(working_dir, 'FIA_only_species.csv'))
+write.csv(both, file.path(working_dir, 'INV_and_FIA_species.csv'))
 
 
 # Which ones are found in 2 or fewer plots?
-
-# Which ones are targeted by FIA (but not found)?
-
-
+# annotated in saved tables
 
 
 
@@ -536,6 +884,44 @@ dev.off()
 #### OLD CODE TO DELETE LATER IF NOT NEEDED
 
 
+## Plotting species lists across regions NOT DISPLAYING WELL. 
+par(mfrow=c(2,2))
+par(mar=c(2,4,1,1))
+
+for(reg in regions){
+	plot_data = comp_counts_reg[c('inv','both','fia'),reg, drop=F]
+	bp = barplot(plot_data, las=1, xlim=c(0,6), ylab='Num. Species',
+		ylim=c(0,sum(plot_data)+6), names.arg='')
+	abline(v=par('usr')[1])
+	abline(h=par('usr')[3])
+
+	inv = unlist(comp_splists_reg['inv',reg])
+	print_inv = names(inv)[names(inv) %in% names(comp_splists[['inv']])]
+	print_inv = paste(print_inv, ' (', inv[print_inv], ')', sep='')
+	
+	fia = unlist(comp_splists_reg['fia',reg])
+	print_fia = names(fia)[names(fia) %in% names(comp_splists[['fia']])]
+	print_fia = paste(print_fia, ' (', fia[print_fia], ')', sep='')
+
+	print_fia = paste(print_fia, collapse='\n')
+	text(1.5, sum(plot_data[c('inv','both'),]) + 0.5*plot_data['fia',], print_fia, pos=4) 
+
+	if(length(print_inv) > plot_data['inv',]/2){
+		print_inv1 = print_inv[1:((length(print_inv)+1)/2)]
+		print_inv2 = print_inv[(length(print_inv1)+1):length(print_inv)]
+		print_inv1 = paste(print_inv1, collapse='\n')
+		print_inv2 = paste(print_inv2, collapse='\n')
+
+		text(1.5, 0.5*plot_data['inv',], print_inv1, pos=4)
+		text(4, 0.5*plot_data['inv',], print_inv2, pos=4)	
+
+	} else {
+		print_inv = paste(print_inv, collapse='\n')
+		text(1.5, 0.5*plot_data['inv',], print_inv, pos=4)
+	}
+
+	mtext(reg, 3, 1)
+}
 
 
 

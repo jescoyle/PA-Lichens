@@ -156,6 +156,7 @@ write.csv(rich_ests, 'richness_estimators_compared.csv')
 ##################################
 ### Environmental Models
 
+# NOTE: need to attach L2NAME to plot data using code in next section below that loads ecoregions polygons
 
 xvars = c('ppt','vpdmax','tmax','tmean','tot_n','tot_s')
 xvarnames = expression('Annual precipitation (mm)', 'Max. VPD (kPa)', 'Max. temperature'~(degree~C),
@@ -237,10 +238,11 @@ inv_em_comm = inv_em_comm[,colSums(inv_em_comm)>2]; dim(inv_em_comm) # 55 specie
 inv_em_comm = inv_em_comm[rowSums(inv_em_comm)>0,]; dim(inv_em_comm) # 185 plots, lost 20
 
 # Run analyses with data subset to the same size as FIA
+# DONT RUN UNLESS INTERESTED IN SUBSETTING INV DATA` 
 # NOTE: when saving files, names have _subsample added to them
 nplots = nrow(fia_comm)
-inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
-inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
+#inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
+#inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
 
 # Calculate Sorenson dissimilarity to view outliers
 # None need to be excluded
@@ -300,6 +302,7 @@ inv_em_cor = cor(inv_em_comm, inv_em_ss, method='kendall')
 
 # Save NMDS objects for future analyses
 #save(fia_mds, inv_e_mds, inv_em_mds, file=file.path(working_dir, 'NMDS_results_subsample.RData'))
+load(file.path(working_dir, 'NMDS_results.RData'))
 
 ## Compare data sets
 
@@ -343,6 +346,13 @@ for(x in xvars){
 
 dev.off()
 
+# Ordination plots to see how species map on axes
+plot(fia_mds, choices=1:2, las=1)
+
+plot(inv_em_mds, display='sites', choices=1:2, las=1)
+plot(inv_em_surf['mod12','ppt'][[1]], add=T)
+text(inv_em_mds, display='species', col='blue', cex=0.7)
+
 # Multivariate ANOVA
 fia_aov = t(sapply(c(xvars, 'L2NAME'), function(x) fia_ad['aov.tab',x][[1]][1,]))
 inv_em_aov = t(sapply(c(xvars, 'L2NAME'), function(x) inv_em_ad['aov.tab',x][[1]][1,]))
@@ -370,13 +380,15 @@ fia_data = cbind(fia_data, fia_sp)
 inv_sp = inv_m_comm[,focal_sp]; colnames(inv_sp) = focal_names
 inv_data = cbind(inv_data, inv_sp)
 
-# Change species names to better variable names
+# Define tansparency for CI and data points
+ci_trans = '50'
+rug_trans = '90'
 
 pdf(file.path(fig_dir, 'species_distributions_singlevars.pdf'), height=18, width=18)
 par(lend=1)
 par(mfrow=c(5, length(xvars)))
-par(mar=c(3, 3, 3, 1))
-par(oma=c(2, 15, 0, 0))
+par(mar=c(3, 3, 2.5, 1))
+par(oma=c(2, 8, 0, 0))
 
 for(sp in focal_names){
 for(x in xvars){
@@ -388,33 +400,34 @@ for(x in xvars){
 	xrange = range(c(fia_data[,x], inv_data[,x]))
 	
 	# FIA
-	make_plot(xrange, c(0,1), xlab=ifelse(counter%%5==0, xvarnames[x], ''))
-	points(inv_data[,x], inv_data[,sp], pch='|', col='#0000ff90')
-	xvals = data.frame(seq(min(inv_data[,x]), max(inv_data[,x]), length.out=100))
+	make_plot(xrange, c(0,1), xlab=ifelse(counter%%length(xvars)==0, xvarnames[x], ''), cex=.8)
+	points(fia_data[,x], fia_data[,sp], pch='|', col=paste0(data_cols['FIA'], rug_trans))
+	xvals = data.frame(seq(min(fia_data[,x]), max(fia_data[,x]), length.out=100))
 	names(xvals)=x
 	fia_pred = predict(fia_mod, newdata=xvals, type='response', se.fit=T)
 	polygon(c(xvals[,1], rev(xvals[,1])), c(fia_pred$fit-fia_pred$se.fit, rev(fia_pred$fit+fia_pred$se.fit)),
-		col='#0000ff50', border=NA)
+		col=paste0(data_cols['FIA'], ci_trans), border=NA)
 	use_lty = ifelse(summary(fia_mod)$s.table[1,4] < 0.05, 1, 3)
-	lines(xvals[,1], fia_pred$fit, col='blue', lwd=2, lty=use_lty)
+	lines(xvals[,1], fia_pred$fit, col=data_cols['FIA'], lwd=2, lty=use_lty)
 
 	# INV
-	points(fia_data[,x], fia_data[,sp], pch='|', col='#ff000090')
-	xvals = data.frame(seq(min(fia_data[,x]), max(fia_data[,x]), length.out=100))
+	points(inv_data[,x], inv_data[,sp], pch='|', col=paste0(data_cols['INV'], rug_trans))
+	xvals = data.frame(seq(min(inv_data[,x]), max(inv_data[,x]), length.out=100))
 	names(xvals)=x
 	inv_pred = predict(inv_mod, newdata=xvals, type='response', se.fit=T)
 	polygon(c(xvals[,1], rev(xvals[,1])), c(inv_pred$fit-inv_pred$se.fit, rev(inv_pred$fit+inv_pred$se.fit)),
-		col='#ff000050', border=NA)
+		col=paste0(data_cols['INV'], ci_trans), border=NA)
 	use_lty = ifelse(summary(inv_mod)$s.table[1,4] < 0.05, 1, 3)
-	lines(xvals[,1],inv_pred$fit, col='red', lwd=2, lty=use_lty)
+	lines(xvals[,1],inv_pred$fit, col=data_cols['INV'], lwd=2, lty=use_lty)
 
-	mtext(paste('FIA prop. explained dev:', format(summary(fia_mod)$dev.expl, digits=2)), 3, 1, col='blue', adj=0, cex=0.8)
-	mtext(paste('INV prop. explained dev:', format(summary(inv_mod)$dev.expl, digits=2)), 3, 0, col='red', adj=0, cex=0.8)
+
+	mtext(format(summary(fia_mod)$dev.expl, digits=2), 3, 0, col=data_cols['FIA'], adj=0, cex=0.8)
+	mtext(format(summary(inv_mod)$dev.expl, digits=2), 3, 0, col=data_cols['INV'], adj=1, cex=0.8)
 
 	if(x==xvars[1]){
 		mtext('Prob. occurence', 2, 2.5, cex=0.8)	
 		par(xpd=NA)
-		text(750, 0.5, labels=focal_sp[counter], adj=1, cex=1.2)
+		add_panel_label(counter, add_sym=paste(')', focal_sp[counter]), x=-.3, y=.99)
 		par(xpd=F)
 	}
 }

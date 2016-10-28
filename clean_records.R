@@ -147,6 +147,14 @@ inv_plots = cbind(inv_plots, extract(prism, inv_plots))
 inv_plots$tot_n = extract(tot_n, inv_plots)
 inv_plots$tot_s = extract(tot_s, inv_plots)
 
+
+## Save data
+write.csv(fia_plots, file.path(derived_dir, 'fia_plots.csv'), row.names=F)
+write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
+
+fia_plots = read.csv(file.path(derived_dir, 'fia_plots.csv'))
+inv_plots = read.csv(file.path(derived_dir, 'inv_plots.csv'))
+
 # Visualize
 
 pdf(file.path(working_dir, 'Figures', 'FIA_vs_INV_environment.pdf'), height=4, width=10)
@@ -168,11 +176,15 @@ make_plot(xlim=c(95, 180), ylim=c(100, 400),
 points(tot_s~tot_n, data=fia_plots, pch=3, col='red')
 points(tot_s~tot_n, data=inv_plots, pch=1, col='blue')
 
-legend('topright', c('FIA','INV'), pch=c(1,3), col=c('blue','red'))
+legend('topright', c('INV','FIA'), pch=c(1,3), col=c('blue','red'))
 dev.off()
 
-## Save data
-write.csv(fia_plots, file.path(derived_dir, 'fia_plots.csv'), row.names=F)
-write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
 
+# Distribution of plots across ppt gradient
+
+fia_prec = cut(fia_plots$ppt, seq(900, 1400, 50))
+inv_prec = cut(inv_plots$ppt, seq(900, 1400, 50))
+
+sum((table(fia_prec)/length(fia_prec))[8:10])
+sum((table(inv_prec)/length(inv_prec))[8:10])
 

@@ -1,7 +1,7 @@
 ## This script conducts analyses and makes figures and tables for the FIA and Inventory data project.
 
 # Load data and settings
-source('C:/Users/jrcoyle/Documents/Research/PA-Lichens/GitHub/PA-Lichens/load_data.R')
+source('Code/PA-Lichens/load_data.R')
 
 # Load functions
 source(file.path(git_dir, 'project_functions.R'))
@@ -18,10 +18,10 @@ library(stringr) # str_trim
 library(mgcv) # gam
 
 # Define directory for saving final figures
-paper_dir = 'C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/Manuscript'
-results_dir = 'C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/Results'
+paper_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Manuscript'
+results_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Results'
 
-# Define subsets of INV data to analyize based on macrolichen and epiphytes
+# Define subsets of INV data to analyze based on macrolichen and epiphytes
 inv_subsets = data.frame(all=rep(T, nrow(inv_lichen)), epi=inv_lichen$standing, 
 	macro=inv_lichen$Macro_vs_Micro=='Macrolichen')
 inv_subsets$epi_macro = inv_subsets$epi&inv_subsets$macro
@@ -501,7 +501,7 @@ for(reg in names(regions)){
 	write.csv(df, file.path(results_dir, paste0('species_freqs_', regname, '.csv')), row.names=F)
 }
 
-## Figure S4: Number of species in INV and FIA across regions
+## Figure S2: Number of species in INV and FIA across regions
 pdf(file.path(paper_dir, 'SI', 'Fig_S4-compare_species_cross_region.pdf'), height=3, width=8.5)
 par(mar=c(4.5,19,1,1.5))
 barplot( comp_counts_reg[c('inv','both','fia'),], horiz=T, las=1, xlim=c(0,100),
@@ -629,7 +629,7 @@ legend('topright', c('FIA','INV'), col=data_cols[c('FIA','INV')], pch=c(3, 1), b
 dev.off()
 
 
-## Figure S2: Species richness vs environment ##
+## Figure S3: Species richness vs environment ##
 pdf(file.path(paper_dir, 'Fig_S2-richness_env.pdf'), height=8, width=16)
 layout(matrix(1:(3*length(xvars)), nrow=3, byrow=F))
 par(mar=c(1.5,1.5,1,1))
@@ -750,7 +750,7 @@ for(x in use_xvars){
 dev.off()
 
 
-# Code for Figure S3 containing all species with > 6 occurances can be found in summarize_data.R script.
+# Code for Figure S4 containing all species with > 6 occurances can be found in summarize_data.R script.
 
 
 ### NMDS

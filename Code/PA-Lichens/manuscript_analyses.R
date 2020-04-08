@@ -84,7 +84,7 @@ pa_outline = gUnionCascaded(eco)
 pa_outline_ll = gUnionCascaded(eco_ll)
 
 ## Load environmental data layers
-env_dir = 'C:/Users/jrcoyle/Documents/Research/GIS DATA/'
+env_dir = 'C:/Users/User/Google Drive/Research/GIS Data/'
 
 # max vpd (from PRISM 30-year normals)
 vpdmax = raster(file.path(env_dir, 'PRISM/Normals81', 
@@ -601,6 +601,7 @@ inv_data = inv_plots@data
 rownames(inv_data) = inv_data$Site_Number
 
 
+
 ## Figure S1: Location of plots in climate space
 
 pdf(file.path(paper_dir, 'Fig_S1-FIA_vs_INV_environment.pdf'), height=3.5, width=9)
@@ -793,13 +794,13 @@ nplots = nrow(fia_comm)
 # None need to be excluded
 fact = 2.5
 
-fia_dist = 1-vegdist(fia_dat, method='bray')
+fia_dist = 1-vegdist(fia_comm, method='bray')
 which(rowMeans(as.matrix(fia_dist)) > mean(fia_dist) + fact*sqrt(var(fia_dist)))
 
-inv_e_dist = 1-vegdist(inv_e_dat, method='bray')
+inv_e_dist = 1-vegdist(inv_e_comm, method='bray')
 which(rowMeans(as.matrix(inv_e_dist)) > mean(inv_e_dist) + fact*sqrt(var(inv_e_dist)))
 
-inv_em_dist = 1-vegdist(inv_em_dat, method='bray')
+inv_em_dist = 1-vegdist(inv_em_comm, method='bray')
 which(rowMeans(as.matrix(inv_em_dist)) > mean(inv_em_dist) + fact*sqrt(var(inv_em_dist)))
 
 # Perform NMDS and fit environmental variables to FIA data
@@ -850,6 +851,71 @@ compare_ef = data.frame(FIA_r2 = c(fia_ef$vectors$r, fia_ef$factors$r), FIA_P = 
 # Save the table depending on whether NMDS was performed on a reduced INV data set (subsampled) or not
 #write.csv(compare_ef, file.path(working_dir, 'Table_3-compare_envfit_nmds.csv'))
 #write.csv(compare_ef, file.path(working_dir, 'Table_S2-compare_envfit_nmds_subsample.csv'))
+
+
+#### Replicate subsampled NMDS many times to get distribution on correlations
+nplots = nrow(fia_comm)
+
+reps <- 2
+
+nms_inv_sub <- array(dim = c(reps, 2, 7, 2), 
+                     dimnames = list(1:reps, 
+                                     c("INV_epi", "INV_em"),
+                                     c(xvars,'L2NAME'),
+                                     c("R2", "P"))
+)
+  
+for(i in 1:reps){
+  
+  # Try to subset and run NMDS once
+  # Epiphytes
+  use_inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
+  inv_e_mds = metaMDS(use_inv_e_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+  # Epiphytic macrolichens
+  use_inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
+  inv_em_mds = metaMDS(use_inv_em_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+  
+  # Keep trying if no convergent solution
+  while(!inv_e_mds$converged){
+    
+    # Subset the data
+    use_inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
+    
+    # Perform NMDS
+    inv_e_mds = metaMDS(use_inv_e_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+    
+  }
+  
+  # fit environmental variables to INV epiphytes
+  inv_e_ef = envfit(inv_e_mds, inv_data[rownames(use_inv_e_comm),c(xvars,'L2NAME')], choices=1:4)
+  
+  # Keep trying if no convergent solution
+  while(!inv_em_mds$converged){
+    
+    # Subset the data
+    use_inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
+    
+    # Perform NMDS
+    inv_em_mds = metaMDS(use_inv_em_comm, distance='bray', k=4, autotransform=F, trymax=300, maxit=500)
+  
+    }
+  
+  # fit environmental variables to INV epiphytic macrolichens
+  inv_em_ef = envfit(inv_em_mds, inv_data[rownames(use_inv_em_comm),c(xvars,'L2NAME')], choices=1:4)
+
+  # Extract R2 and p values
+  compare_ef = data.frame(INV_epi_r2 = c(inv_e_ef$vectors$r, inv_e_ef$factors$r), INF_epi_P = c(inv_e_ef$vectors$pvals, inv_e_ef$factors$pvals),
+                          INV_em_r2 = c(inv_em_ef$vectors$r, inv_em_ef$factors$r), INF_em_P = c(inv_em_ef$vectors$pvals, inv_em_ef$factors$pvals)
+  )
+  
+  nms_inv_sub[i, "INV_epi", , 'R2'] <- c(inv_e_ef$vectors$r, inv_e_ef$factors$r)
+  nms_inv_sub[i, "INV_em", , 'R2'] <- c(inv_em_ef$vectors$r, inv_em_ef$factors$r)
+  nms_inv_sub[i, "INV_epi", , 'P'] <- c(inv_e_ef$vectors$pvals, inv_e_ef$factors$pvals)
+  nms_inv_sub[i, "INV_em", , 'P'] <- c(inv_em_ef$vectors$pvals, inv_em_ef$factors$pvals)
+}
+
+
+
 
 
 

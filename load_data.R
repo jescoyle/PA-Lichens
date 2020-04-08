@@ -3,11 +3,11 @@
 options(stringsAsFactors=F)
 
 ## Define directories
-data_dir = 'C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/Raw_data/'
-derived_dir = 'C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/Derived_data/'
-git_dir = 'C:/Users/jrcoyle/Documents/Research/PA-Lichens/GitHub/PA-Lichens/'
-working_dir = 'C:/Users/jrcoyle/Documents/Research/PA-Lichens/'
-fig_dir = 'C:/Users/jrcoyle/Documents/Research/PA-Lichens/Figures/'
+data_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Raw_data/'
+derived_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Derived_data/'
+git_dir = '.'
+working_dir = '.'
+fig_dir = './Figures/'
 
 setwd(working_dir)
 

@@ -5,7 +5,7 @@ options(stringsAsFactors=F)
 ## Define directories
 data_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Raw_data/'
 derived_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Derived_data/'
-git_dir = '.'
+git_dir = './Code/PA-Lichens/'
 working_dir = '.'
 fig_dir = './Figures/'
 

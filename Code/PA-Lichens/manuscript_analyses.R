@@ -147,8 +147,8 @@ colnames(inv_S) = paste('S', colnames(inv_S), sep='_')
 inv_plots = cbind(inv_plots, inv_S)
 
 
-## Write out derived data tables for publication?
-
+# Save species lists for later
+#save(fia_splist, inv_splist, file = "species_lists.RData")
 
 
 ## Table 1: Description of Datasets
@@ -285,6 +285,8 @@ dev.off()
 ###############################################################
 ### Compare species richness across data sets
 
+load("species_lists.RData")
+
 ## Convert species lists to site X species matrices
 species = unique(c(fia_lichen$Binomial,inv_lichen$Binomial))
 species = species[order(species)]
@@ -295,6 +297,10 @@ inv_siteXsp = apply(inv_splist, 1:2, function(x) species %in% x[[1]])
 inv_siteXsp = aperm(inv_siteXsp, c(2,3,1))
 dimnames(inv_siteXsp)[[2]] = inv_plots$Site_Number
 dimnames(inv_siteXsp)[[3]] = species
+
+# Save site x species matrices for later
+#save(fia_siteXsp, inv_siteXsp, file = "siteXspecies_matrices.RData")
+
 
 ## Rarefaction of species richness
 
@@ -600,7 +606,9 @@ fia_data = fia_plots@data
 inv_data = inv_plots@data
 rownames(inv_data) = inv_data$Site_Number
 
-
+# Save data tables
+write.csv(fia_data, "Data/fia_plot_data.csv", row.names = FALSE)
+write.csv(inv_data, "Data/inv_plot_data.csv", row.names = FALSE)
 
 ## Figure S1: Location of plots in climate space
 
@@ -631,7 +639,7 @@ dev.off()
 
 
 ## Figure S3: Species richness vs environment ##
-pdf(file.path(paper_dir, 'Fig_S2-richness_env.pdf'), height=8, width=16)
+pdf(file.path(paper_dir, 'Fig_S3-richness_env.pdf'), height=8, width=16)
 layout(matrix(1:(3*length(xvars)), nrow=3, byrow=F))
 par(mar=c(1.5,1.5,1,1))
 par(oma=c(3,4.5,0,0))
@@ -763,6 +771,8 @@ dev.off()
 ### 3 axes
 ### Pearson and kendall correlations with ordination acxes
 
+load("siteXspecies_matrices.RData")
+
 # Make community data matrices
 fia_comm = fia_siteXsp[,colSums(fia_siteXsp)>0]
 inv_em_comm = inv_siteXsp['epi_macro',,]
@@ -781,14 +791,6 @@ inv_e_comm = inv_e_comm[rowSums(inv_e_comm)>0,]; dim(inv_e_comm) # 193 plots, lo
 dim(inv_em_comm) # 98
 inv_em_comm = inv_em_comm[,colSums(inv_em_comm)>2]; dim(inv_em_comm) # 55 species, lost 43
 inv_em_comm = inv_em_comm[rowSums(inv_em_comm)>0,]; dim(inv_em_comm) # 185 plots, lost 20
-
-# Run analyses with data subset to the same size as FIA
-# These analyses are reported in the SI
-# DONT RUN UNLESS INTERESTED IN SUBSETTING INV DATA` 
-# NOTE: when saving files, names have _subsample added to them
-nplots = nrow(fia_comm)
-#inv_em_comm = inv_em_comm[sample(nrow(inv_em_comm), nplots),]
-#inv_e_comm = inv_e_comm[sample(nrow(inv_e_comm), nplots),]
 
 # Calculate Sorenson dissimilarity to view outliers
 # None need to be excluded
@@ -837,7 +839,7 @@ inv_em_ss = scores(inv_em_mds, 'sites', choices=1:4) # Oksanen suggests not doin
 inv_em_cor = cor(inv_em_comm, inv_em_ss, method='kendall')
 
 # Save NMDS objects for future analyses
-#save(fia_mds, inv_e_mds, inv_em_mds, file=file.path(working_dir, 'NMDS_results_subsample.RData'))
+#save(fia_mds, fia_ef, inv_e_mds, inv_e_ef, inv_em_mds, inv_em_ef, file=file.path(working_dir, 'NMDS_results.RData'))
 load(file.path(working_dir, 'NMDS_results.RData'))
 
 ## Compare environmental fits to NMDS across data sets
@@ -856,7 +858,7 @@ compare_ef = data.frame(FIA_r2 = c(fia_ef$vectors$r, fia_ef$factors$r), FIA_P = 
 #### Replicate subsampled NMDS many times to get distribution on correlations
 nplots = nrow(fia_comm)
 
-reps <- 2
+reps <- 1000
 
 nms_inv_sub <- array(dim = c(reps, 2, 7, 2), 
                      dimnames = list(1:reps, 
@@ -912,8 +914,133 @@ for(i in 1:reps){
   nms_inv_sub[i, "INV_em", , 'R2'] <- c(inv_em_ef$vectors$r, inv_em_ef$factors$r)
   nms_inv_sub[i, "INV_epi", , 'P'] <- c(inv_e_ef$vectors$pvals, inv_e_ef$factors$pvals)
   nms_inv_sub[i, "INV_em", , 'P'] <- c(inv_em_ef$vectors$pvals, inv_em_ef$factors$pvals)
+
+  # save every 10 reps
+#  if(round(i/10)==i/10) save(nms_inv_sub, file = "NMDS_results_subsample1000.RData")
+  
 }
 
+dimnames(nms_inv_sub)
+
+### Figure S5: Results of NMDS on subsamples of INV data sets
+load("NMDS_results_subsample1000.RData")
+load("NMDS_results.RData")
+
+# Calculate R2 and P from FIA NMDS
+FIA_r2 = c(fia_ef$vectors$r, fia_ef$factors$r)
+FIA_P = c(fia_ef$vectors$pvals, fia_ef$factors$pvals)
+
+# Calculate R2 and P from full INV macrolichens data
+INV_epi_r2 = c(inv_e_ef$vectors$r, inv_e_ef$factors$r)
+INV_epi_P = c(inv_e_ef$vectors$pvals, inv_e_ef$factors$pvals)
+
+INV_em_r2 = c(inv_em_ef$vectors$r, inv_em_ef$factors$r)
+INV_em_P = c(inv_em_ef$vectors$pvals, inv_em_ef$factors$pvals)
+
+# Calculate median and 95% CI across replicates: not using this
+meds <- apply(nms_inv_sub, 2:4, median)
+CI.95 <- apply(nms_inv_sub, 2:4, function(x) quantile(x, probs = c(0.025, 0.975)))
+
+# Determine plot limits & plot colors
+r2max <- max(nms_inv_sub[,,,"R2"])
+pcolor <- "grey50"
+fiacolor <- "red"
+invcolor <- "blue"
+
+# Create plot file
+pdf(file.path(paper_dir, 'Fig_S5-compare_fia_nmds_subsample.pdf'), height=11, width=8)
+
+
+# Set up plot margins
+layout(matrix(1:(2*(length(xvars)+1)), nrow=length(xvars)+1, byrow=T))
+par(mar = c(2,2.5,1,1))
+par(oma = c(2,20,2,0))
+
+for(xvar in c(xvars, "L2NAME")){
+
+  ## Epiphytes
+
+  # Determine y limits
+  maxP <- max(nms_inv_sub[, , xvar, "P"])
+  
+  plot(x = nms_inv_sub[,"INV_epi", xvar, "R2"], 
+       y = nms_inv_sub[,"INV_epi", xvar, "P"],
+       xlim = c(0, r2max), ylim = c(0, maxP), las = 1,
+       xlab = "", ylab = ""
+  )
+  
+  # Add y-axis label
+  mtext("P-value", 2, 3, cex = 1)
+  mtext(xvarnames[xvar], 2, 21, las = 1, cex = 1, adj = 0)
+
+  # Add x-axis label & Ecoregion label
+  if(xvar == "L2NAME"){
+    mtext(expression(R^2), 1, 2.5)
+    mtext("Ecoregion", 2, 21, las = 1, cex = 1, adj = 0)
+  }
+  
+  # Add top label
+  if(xvar == xvars[1]) mtext("Epiphytes", 3, 1) 
+    
+  # How many reps had P < 0.05? 
+  abline(h = 0.05, col = pcolor)
+  num_sig <- sum(nms_inv_sub[,"INV_epi", xvar, "P"] < 0.05)
+  text(r2max, 0.05, paste0(num_sig/reps*100, "%"), 
+       adj = c(1,1.2), col = pcolor)
+  
+  # Add the FIA NMDS  
+  points(FIA_r2[xvar], FIA_P[xvar], pch=16, col=fiacolor)
+  text(FIA_r2[xvar], FIA_P[xvar], "FIA", adj = c(-.1,-.4), col = fiacolor)
+  
+  # How many reps had R2 > FIA r2?
+  abline(v = FIA_r2[xvar], col = fiacolor)
+  num_greaterthanFIA <- sum(nms_inv_sub[,"INV_epi", xvar, "R2"] > FIA_r2[xvar])
+  text(FIA_r2[xvar], maxP, paste0(num_greaterthanFIA/reps*100, "%"), 
+       adj = c(-.2,1), col = fiacolor)
+  
+  # Add the full INV epiphytes NMDS point
+  points(INV_epi_r2[xvar], INV_epi_P[xvar], pch=16, col=invcolor)
+  text(INV_epi_r2[xvar], INV_epi_P[xvar], "INV", 
+       adj = c(-.1,-.4), col = invcolor)
+  
+  
+  ## Epiphytic macrolichens
+  plot(x = nms_inv_sub[,"INV_em", xvar, "R2"], 
+       y = nms_inv_sub[,"INV_em", xvar, "P"],
+       xlim = c(0, r2max), ylim = c(0, maxP), las = 1
+  )
+  
+  # Add x-axis label
+  if(xvar == "L2NAME") mtext(expression(R^2), 1, 2.5, cex = 1) 
+  
+  # Add top label
+  if(xvar == xvars[1]) mtext("Epiphytic Macrolichens", 3, 1) 
+  
+  # How many reps had P < 0.05? 
+  abline(h = 0.05, col = pcolor)
+  num_sig <- sum(nms_inv_sub[,"INV_em", xvar, "P"] < 0.05)
+  text(r2max, 0.05, paste0(num_sig/reps*100, "%"), 
+       adj = c(1,1.2), col = pcolor)
+  
+  # Add the FIA NMDS  
+  points(FIA_r2[xvar], FIA_P[xvar], pch=16, col=fiacolor)
+  text(FIA_r2[xvar], FIA_P[xvar], "FIA", adj = c(-.1,-.4), col = fiacolor)
+  
+  # How many reps had R2 > FIA r2?
+  abline(v = FIA_r2[xvar], col = fiacolor)
+  num_greaterthanFIA <- sum(nms_inv_sub[,"INV_em", xvar, "R2"] > FIA_r2[xvar])
+  text(FIA_r2[xvar], maxP, paste0(num_greaterthanFIA/reps*100, "%"), 
+       adj = c(-.2,1), col = fiacolor)
+  
+  # Add the full INV epiphytic macrolichens NMDS point
+  points(INV_em_r2[xvar], INV_em_P[xvar], pch=16, col=invcolor)
+  text(INV_em_r2[xvar], INV_em_P[xvar], "INV", 
+       adj = c(-.1,-.4), col = invcolor)
+  
+  
+}
+
+dev.off()
 
 
 

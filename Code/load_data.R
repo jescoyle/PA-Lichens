@@ -3,16 +3,14 @@
 options(stringsAsFactors=F)
 
 ## Define directories
-data_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Raw_data/'
-derived_dir = 'C:/Users/User/Dropbox/Pennsylvania_FIA_vs_inventory/Derived_data/'
-git_dir = './Code/PA-Lichens/'
-working_dir = '.'
-fig_dir = './Figures/'
-
-setwd(working_dir)
+data_dir <- 'Data/raw'
+derived_dir <- 'Data/derived'
+code_dir <- 'Code'
+working_dir <- './'
+fig_dir <- 'Figures'
 
 ## Load functions
-source(file.path(git_dir, 'project_functions.R'))
+source(file.path(code_dir, 'project_functions.R'))
 
 ## Read in data
 

@@ -1,0 +1,84 @@
+FIA_NAME	INVENTORY_NAME	COMMENT	FIA	INV	REF_SPP_COMMENTS
+Anaptychia palmulata	Anaptychia palmulata	SAME	2	20	
+Bulbothrix coronata	Bulbothrix coronata	"OUT OF RANGE, MISIDENTIFICATION!"	3	0	
+Candelaria concolor	Candelaria concolor	SAME	15	33	
+Candelaria fibrosa	Candelaria fibrosa	SAME	1	0	
+Canoparmelia	Canoparmelia	LIKELY MISIDENTIFICATION	1	0	
+Cetraria oakesiana	Usnocetraria oakesiana	NAME CHANGE	36	0	"Cetraria oakesiana was re-named to 1012 Usnocetraria oakesiana (Thell et al. 2009), then re-named back to Cetraria oakesiana (Divakar et al. 2017)."
+Cetrelia olivetorum	Cetrelia olivetorum	SAME	1	12	
+Cladonia	Cladonia	SAME	1	0	
+Cladonia caespiticia	Cladonia caespiticia	SAME	4	20	
+Cladonia chlorophaea	Cladonia chlorophaea	SAME	8	29	
+Cladonia clavulifera	Cladonia clavulifera	LIKELY MISIDENTIFICATION	1	0	
+Cladonia coniocraea	Cladonia coniocraea	SAME	63	3	
+Cladonia cristatella	Cladonia cristatella	SAME	3	18	
+Cladonia cylindrica	Cladonia cylindrica	SAME	5	5	
+Cladonia decorticata	Cladonia decorticata	LIKELY MISIDENTIFICATION	1	0	
+Cladonia didyma	Cladonia didyma	SAME	1	2	
+Cladonia furcata	Cladonia furcata	SAME	1	47	
+Cladonia macilenta	Cladonia macilenta	SAME	32	70	
+Cladonia parasitica	Cladonia parasitica	SAME	7	52	
+Cladonia peziziformis	Cladonia peziziformis	SAME	1	7	
+Cladonia pleurota	Cladonia pleurota	SAME	1	34	
+Cladonia pyxidata	Cladonia pyxidata	SAME	1	12	
+Cladonia ramulosa	Cladonia ramulosa	SAME	3	20	
+Cladonia rei	Cladonia rei	SAME	1	25	
+Cladonia squamosa	Cladonia squamosa	SAME	1	62	
+Evernia mesomorpha	Evernia mesomorpha	SAME	4	14	
+Flavoparmelia	Flavoparmelia	SAME	5	0	
+Flavoparmelia baltimorensis	Flavoparmelia baltimorensis	SAME	1	60	
+Flavoparmelia caperata	Flavoparmelia caperata	SAME	115	146	
+Flavopunctelia flaventior	Flavopunctelia flaventior	SAME	5	8	
+Flavopunctelia soredica	Flavopunctelia soredica	LIKELY MISIDENTIFICATION	6	16	
+Heterodermia casarettiana	Heterodermia casarettiana	LIKELY MISIDENTIFICATION	1	0	
+Heterodermia obscurata	Heterodermia obscurata	SAME	1	15	
+Heterodermia speciosa	Heterodermia speciosa	SAME	2	13	
+Hyperphyscia adglutinata	Hyperphyscia adglutinata	SAME	1	0	
+Hypogymnia	Hypogymnia	SAME	4	0	
+Hypogymnia physodes	Hypogymnia physodes	SAME	24	62	
+Hypotrachyna croceopustulata	Hypotrachyna croceopustulata	"OUT OF RANGE, MISIDENTIFICATION!"	1	0	
+Hypotrachyna horrescens	Hypotrachyna horrescens	LIKELY MISIDENTIFICATION	1	0	
+Hypotrachyna showmanii	Hypotrachyna showmanii	SAME	6	38	
+Imshaugia aleurites	Imshaugia aleurites	SAME	8	34	
+Lobaria pulmonaria	Lobaria pulmonaria	SAME	1	1	
+Lobaria quercizans	Lobaria quercizans	SAME	1	2	
+Melanelia	Melanelia	SAME	1	0	
+Melanelixia subaurifera	Melanelixia subaurifera	SAME	26	50	
+Menegazzia subsimilis	Menegazzia subsimilis	LIKELY MISIDENTIFICATION	1	0	"For analyzing data for multiple years crossing 2009, 4101 Menegazzia terebrata should be combined into 4102 M. subsimilis. Specimens identified as M. terebrata before 2009 were most likely M. subsimilis, which is the more common species (Bjerke 2003)."
+Myelochroa	Myelochroa	SAME	3	0	
+Myelochroa aurulenta	Myelochroa aurulenta	SAME	37	66	
+Myelochroa galbina	Myelochroa galbina	LIKELY MISIDENTIFICATION	2	0	
+Myelochroa obsessa	Myelochroa obsessa	SAME	3	19	
+Nephromopsis aurescens	Ahtiana aurescens	LIKELY MISIDENTIFICATION	4	0	 1002 Cetraria aurescens is a synonym of Tuckermannopsis aurescens. FIA never adopted the latter name due to lack of scientific consensus. This species is now named 1002 Nephromopsis aurescens (Divakar et al. 2017).
+Nodobryoria abbreviata	Nodobryoria abbreviata	OBVIOUS MISIDENTIFICATION	2	0	Bryoria abbreviata is a synonym and should be combined with 4551 Nodobryoria abbreviata for all analyses.
+Parmelia	Parmelia	SAME	9	0	
+Parmelia saxatilis	Parmelia saxatilis	LIKELY MISIDENTIFICATION	2	0	
+Parmelia squarrosa	Parmelia squarrosa	SAME	9	72	
+Parmelia sulcata	Parmelia sulcata	SAME	103	101	
+Parmeliopsis hyperopta	Parmeliopsis hyperopta	SAME	1	2	
+Parmotrema	Parmotrema	SAME	6	0	
+Parmotrema hypotropum	Parmotrema hypotropum	SAME	5	17	
+Parmotrema perforatum	Parmotrema perforatum	SAME	1	1	
+Parmotrema perlatum	Parmotrema perlatum	SAME	2	0	
+Parmotrema stuppeum	Parmotrema stuppeum	SAME	1	1	
+Phaeophyscia adiastola	Phaeophyscia adiastola	SAME	2	27	
+Phaeophyscia pusilloides	Phaeophyscia pusilloides	SAME	31	22	
+Phaeophyscia rubropulchra	Phaeophyscia rubropulchra	SAME	95	87	
+Physcia	Physcia	SAME	1	0	
+Physcia adscendens	Physcia adscendens	SAME	1	3	
+Physcia aipolia	Physcia aipolia	LIKELY MISIDENTIFICATION	1	0	southeastern USA states may actually be Physcia pumilior. Re-evaluation of specimens in other herbaria are required to confirm this. See comment for Physcia aipolia.
+Physcia americana	Physcia americana	SAME	1	2	
+Physcia millegrana	Physcia millegrana	SAME	127	63	
+Physcia stellaris	Physcia stellaris	SAME	19	34	
+Physciella chloantha	Physciella chloantha	SAME	4	1	
+Physconia detersa	Physconia detersa	SAME	5	8	
+Pseudevernia consocians	Pseudevernia consocians	SAME	1	8	
+Punctelia	Punctelia	SAME	11	0	
+Punctelia caseana	Punctelia caseana	SAME	84	152	"EAST- 6711 Punctelia subrudecta should be combined into 6713 P. caseana for all analyses.  This treatment follows Lendemer & Hodkinson (2010). ACTION 5/ACTION 0:  EAST -for data collected before 2010, combine 6706 P. perreticulata into 6713 P. caseana for all analyses.  Lendemer & Hodkinson (2010) narrowed the species concept for P. perreticulata, making it likely that specimens collected outside the Ozarks are P. caseana."
+Punctelia missouriensis	Punctelia missouriensis	LIKELY MISIDENTIFICATION	8	1	
+Punctelia rudecta	Punctelia rudecta	SAME	57	133	
+Pyxine sorediata	Pyxine sorediata	SAME	8	31	
+Pyxine subcinerea	Pyxine subcinerea	SAME	2	0	
+Umbilicaria mammulata	Umbilicaria mammulata	SAME	1	45	
+Usnea	Usnea	SAME	1	0	
+Usnea strigosa	Usnea strigosa	SAME	2	0	

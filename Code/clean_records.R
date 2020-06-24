@@ -2,48 +2,81 @@
 
 options(stringsAsFactors=F)
 library(stringr)
+library(dplyr)
 
 ## Define directories
-data_dir = 'Data/raw'
-derived_dir = 'Data/derived'
-code_dir = 'Code'
-working_dir = './'
+data_dir <- 'Data/raw'
+derived_dir <- 'Data/derived'
+code_dir <- 'Code'
+working_dir <- './'
 
 ## Load functions
 source(file.path(code_dir, 'project_functions.R'))
 
 ## Read in data
 # Inventory data come from James Lendemer
-inv_lichen = read.csv(file.path(data_dir, 'ALL_LENDEMER_LICHENS_ONLY_PLOTS.csv'))
+inv_lichen <- read.csv(file.path(data_dir, 'ALL_LENDEMER_LICHENS_ONLY_PLOTS.csv'))
 
-# FIA Lichen data were generated using the following script:
-# https://github.com/jescoyle/FIA-Lichens/blob/master/download_data/parse_lichen_data.txt
-# after downloading from the FIA & FHM Program websites in 2011. (As of 3/14/2016, newer versions were not available online.)
-fia_lichen = read.csv(file.path(data_dir, 'FIA_lichens_parsed_2012-05-13.csv'))
-fia_lichen = subset(fia_lichen, STATECD==42) # Subset to PA
+# FIA Lichen data were generated using the script create_fia_data.R
+fia_lichen <- read.csv(file.path(derived_dir, "fia_lichens.csv"))
 
-# Read in FIA plot data from Coyle & Hurlbert 2016
-fia_plots = read.csv(file.path(data_dir, 'fia_lichen_master_data_2015-09-19.csv'))
+# Read in FIA plot data generated using the script create_fia_data.R
+fia_plots <- read.csv(file.path(data_dir, "PA_lichen_plots.csv"))
 
 # Add coordinates to fia lichens
-fia_lichen = merge(fia_lichen, fia_plots[,c('yrplot.id','LON','LAT')], all.x=T, all.y=F)
+fia_lichen <- left_join(fia_lichen, fia_plots[,c('yrplotid','LON','LAT')])
 
-# Add taxon info to fia lichens
-fia_taxa = read.csv(paste0(data_dir, 'REF_LICHEN_SPECIES.CSV'))
-fia_taxa = subset(fia_taxa, is.na(YEAREND)) # Do not use old taxa names
-fia_lichen = merge(fia_lichen, fia_taxa[,c('LICH_SPPCD','GENUS','SPECIES')], all.x=T, all.y=F)
+# Make table that maps taxon code to names
+# Needs to use most recent entries from COMMENTS file and older entries from SPECIES file
+fia_taxa <- data.frame(LICH_SPPCD = unique(fia_lichen$LICH_SPPCD))
+
+ref_comments <- read.csv(file.path(data_dir, "REF_LICHEN_SPP_COMMENTS_PlainTextFINALUPDATES.csv"))
+ref_species <- read.csv(file.path(data_dir, "REF_LICHEN_SPECIES.csv"))
+ref_comments <- subset(ref_comments, is.na(YEAREND)) # Do not use old taxa names
+ref_species <- subset(ref_species, is.na(YEAREND))
+
+fia_taxa$Binomial <- sapply(fia_taxa$LICH_SPPCD, function(x) {
+  if(x %in% ref_comments$LICH_SPPCD){
+    this_taxon <- ref_comments[ref_comments$LICH_SPPCD == x, c("GENUS", "SPECIES")]
+  } else {
+    this_taxon <- ref_species[ref_species$LICH_SPPCD == x, c("GENUS", "SPECIES")]
+  }
+  
+  str_trim(paste(this_taxon$GENUS, this_taxon$SPECIES))
+})
+
+# Add taxon names to fia lichen records
+fia_lichen <- left_join(fia_lichen, fia_taxa)
 
 # Create species binomial that is consistant across data sets
-inv_lichen$Species = sapply(strsplit(inv_lichen$DarScientificName, ' '), function(x) x[2])
-inv_lichen$Binomial = str_trim(paste(inv_lichen$DarGenus, inv_lichen$Species))
-inv_lichen[is.na(inv_lichen$Species),'Binomial'] = inv_lichen[is.na(inv_lichen$Species),'DarGenus'] 
-fia_lichen$Binomial = str_trim(paste(fia_lichen$GENUS, fia_lichen$SPECIES))
+inv_lichen$Species <- sapply(strsplit(inv_lichen$DarScientificName, ' '), function(x) x[2])
+inv_lichen$Binomial <- str_trim(paste(inv_lichen$DarGenus, inv_lichen$Species))
+inv_lichen[is.na(inv_lichen$Species),'Binomial'] <- inv_lichen[is.na(inv_lichen$Species),'DarGenus'] 
+
+# Write out table of names to compare to INV
+fia_count <- fia_lichen %>%
+  group_by(Binomial) %>%
+  summarise(FIA = n())
+inv_count <- inv_lichen %>%
+  filter(Binomial %in% fia_taxa$Binomial) %>%
+  group_by(Binomial) %>%
+  summarise(INV = n())
+
+compare_taxa <- left_join(fia_count, inv_count) %>%
+  mutate(INV = ifelse(is.na(INV), 0, INV)) %>%
+  rename(FIA_NAME = Binomial)
+  
+#write.csv(compare_taxa, file.path(derived_dir, "compare_taxa.csv"), row.names = FALSE)
+
+## Examined taxa that were missing from INV and renamed manually in Code/FIA_TAXONOMY_conversion.csv
+
 
 # Convert FIA taxa to those used in INV
-taxa_mapper = read.csv('C:/Users/jrcoyle/Dropbox/Pennsylvania_FIA_vs_inventory/FIA_TAXONOMY_conversion.csv')
+taxa_mapper <- read.table(file.path(code_dir, "FIA_taxonomy_conversion.txt"),
+                          header = TRUE, sep = "\t")
 change_taxa = subset(taxa_mapper, FIA_NAME!=INVENTORY_NAME)
 for(i in 1:nrow(change_taxa)){
-	fia_lichen[fia_lichen$Binomial==change_taxa[i,'FIA_NAME'],'Binomial'] = change_taxa[i,'INVENTORY_NAME']
+	fia_lichen[fia_lichen$Binomial==change_taxa[i,'FIA_NAME'],'Binomial'] <- change_taxa[i,'INVENTORY_NAME']
 }
 
 # Add habitat category to inventory data
@@ -69,7 +102,7 @@ for(i in 1:nrow(change_taxa)){
 #inv_lichen$substrate3 = sapply(sub_list, function(x) x[3])
 #write.csv(inv_lichen[,c('ecatalogue_key','Binomial','HabSubstrate','HabHabitat','substrate1','substrate2','substrate3')], 'inv_substrates.csv', row.names=F)
 
-# Read back in manually modified substrate descritions (for those matching more than on key word)
+# Read back in manually modified substrate descriptions (for those matching more than one key word)
 substrate = read.csv('inv_substrates_manual.csv')
 inv_lichen = merge(inv_lichen, substrate[,c('ecatalogue_key','substrate')])
 
@@ -78,12 +111,12 @@ inv_lichen$standing = inv_lichen$substrate=='bark'
 inv_lichen[grep('fallen', inv_lichen$HabSubstrate, ignore.case=T),'standing'] = F
 
 # Save derived data sets
-write.csv(inv_lichen, file.path(derived_dir, 'inv_lichens.csv'), row.names=F)
-write.csv(fia_lichen, file.path(derived_dir, 'fia_lichens.csv'), row.names=F)
+#write.csv(inv_lichen, file.path(derived_dir, 'inv_lichens.csv'), row.names=F)
+#write.csv(fia_lichen, file.path(derived_dir, 'fia_lichens_matchINV.csv'), row.names=F)
 
 # Read in data
-inv_lichen = read.csv(file.path(derived_dir, 'inv_lichens.csv'))
-fia_lichen = read.csv(file.path(derived_dir, 'fia_lichens.csv'))
+inv_lichen <- read.csv(file.path(derived_dir, 'inv_lichens.csv'))
+fia_lichen <- read.csv(file.path(derived_dir, 'fia_lichens_matchINV.csv'))
 
 
 
@@ -93,22 +126,23 @@ library(sp)
 library(rgdal)
 
 ## INV
-inv_plots = unique(inv_lichen[,c('Site_Number','DarLongitude','DarLatitude','HabHabitat','DarLocality')])
+inv_plots <- unique(inv_lichen[,c('Site_Number','DarLongitude','DarLatitude','HabHabitat','DarLocality')])
 #write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
 
 # Read back in plots after manually removing duplicates
-inv_plots = read.csv(file.path(derived_dir, 'inv_plots.csv'))
-coordinates(inv_plots) = c('DarLongitude','DarLatitude')
-projection(inv_plots) = c('+proj=longlat')
+inv_plots <- read.csv(file.path(derived_dir, 'inv_plots.csv'))
+coordinates(inv_plots) <- c('DarLongitude','DarLatitude')
+projection(inv_plots) <- c('+proj=longlat')
 
 # FIA
-fia_plots = fia_plots[,c('yrplot.id','LON','LAT')]
-fia_plots = subset(fia_plots, yrplot.id %in% fia_lichen$yrplot.id) #124 plots
+fia_plots <- fia_plots[,c('yrplotid','LON','LAT')]
+fia_plots = subset(fia_plots, yrplotid %in% fia_lichen$yrplotid) #146 plots
 coordinates(fia_plots) = c('LON','LAT')
 projection(fia_plots) = c('+proj=longlat')
 
 ## Environmental Data
-env_dir = 'C:/Users/jrcoyle/Documents/Research/GIS DATA/'
+# This data is not included in Rproject
+env_dir = 'C:/Users/User/Google Drive/Research/GIS DATA/'
 
 ## PRISM 30-yr normals, 800m
 
@@ -147,11 +181,11 @@ inv_plots$tot_s = extract(tot_s, inv_plots)
 
 
 ## Save data
-write.csv(fia_plots, file.path(derived_dir, 'fia_plots.csv'), row.names=F)
-write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
+#write.csv(fia_plots, file.path(derived_dir, 'fia_plots.csv'), row.names=F)
+#write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
 
-fia_plots = read.csv(file.path(derived_dir, 'fia_plots.csv'))
-inv_plots = read.csv(file.path(derived_dir, 'inv_plots.csv'))
+fia_plots <- read.csv(file.path(derived_dir, 'fia_plots.csv'))
+inv_plots <- read.csv(file.path(derived_dir, 'inv_plots.csv'))
 
 # Visualize
 

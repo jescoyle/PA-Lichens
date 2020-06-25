@@ -1,7 +1,7 @@
 ## This script summarizes FIA and Inventory data for Pennsylvania so that species composistion and diversity can be compared.
 
 # Load data and settings
-source('C:/Users/jrcoyle/Documents/Research/PA-Lichens/GitHub/PA-Lichens/load_data.R')
+source('Code/load_data.R')
 
 # Load packages
 library(sp) # spatial objects
@@ -18,7 +18,7 @@ library(mgcv) # gam
 blue2red = read.csv('../blue2red_10colramp.txt')
 blue2red = rgb(blue2red, maxColorValue=255)[10:1]
 
-# Define subsets of INV data to analyize based on macrolichen and epiphytes
+# Define subsets of INV data to analyze based on macrolichen and epiphytes
 inv_subsets = data.frame(all=rep(T, nrow(inv_lichen)), epi=inv_lichen$standing, 
 	macro=inv_lichen$Macro_vs_Micro=='Macrolichen')
 inv_subsets$epi_macro = inv_subsets$epi&inv_subsets$macro
@@ -63,8 +63,9 @@ plots_within_D = sapply(1:20, function(D){
 ## START HERE ##
 
 ## Calculate species richness in each plot
-fia_splist = sapply(fia_plots$yrplot.id, function(y){
-	these_sp = get_species(subset(fia_lichen, yrplot.id==y)$Binomial)
+## No longer going to drop Genus-only records when a congeneric is present
+fia_splist = sapply(fia_plots$yrplotid, function(y){
+	these_sp = unique(subset(fia_lichen, yrplotid==y)$Binomial)
 	these_sp[order(these_sp)]
 })
 
@@ -72,6 +73,7 @@ fia_plots$S = sapply(fia_splist, length)
 
 
 ## Calculate species richness in each plot
+# Drop Genus-only records when a congeneric is present
 inv_splist = sapply(inv_plots$Site_Number, function(y){
 	these_sp = subset(inv_lichen, Site_Number==y)
 	
@@ -126,20 +128,20 @@ par(mar=c(4,4,1,1))
 make_plot(c(0,210), c(0,525), xlab='Num. Plots', ylab='Num. Species')
 plot(fia_acc, col='red', lwd=2, ci=2, ci.type='polygon', ci.col='#50000050', ci.lty=0, add=T)
 
-text(124, 75, labels='FIA', adj=c(0, 1.1))
+text(length(fia_acc$richness), max(fia_acc$richness), labels='FIA', adj=c(0, 1.1))
 
 plot(inv_all_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
 plot(inv_epi_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
 plot(inv_macro_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
 plot(inv_em_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
 
-text(204, c(513, 263, 188, 98), labels=paste('INV',names(invsets)), adj=c(1,-.2))
+text(204, c(513, 263, 188, 98), labels=paste('INV',names(inv_subsets)), adj=c(1,-.2))
 
-# Just compare epiphytc macrolichens
+# Just compare epiphytic macrolichens
 make_plot(c(0,210), c(0,100), xlab='Num. Plots', ylab='Num. Species')
 
 plot(fia_acc, col='red', lwd=2, ci=2, ci.type='polygon', ci.col='#50000050', ci.lty=0, add=T)
-text(124, 75, labels='FIA', pos=4)
+text(length(fia_acc$richness), max(fia_acc$richness), labels='FIA', adj=c(0, 1.1))
 plot(inv_em_acc, col='blue', lwd=2, ci=2, ci.type='polygon', ci.col='#00005050', ci.lty=0, add=T)
 text(204, 98, labels='INV Epiphytic Macrolichens', adj=c(1,-.5))
 
@@ -150,7 +152,7 @@ comm_mats = list(fia=fia_siteXsp, inv_all=inv_siteXsp['all',,], inv_epi=inv_site
 	inv_macro=inv_siteXsp['macro',,], inv_epi_macro=inv_siteXsp['epi_macro',,])
 
 rich_ests = sapply(comm_mats, specpool)
-write.csv(rich_ests, 'richness_estimators_compared.csv')
+write.csv(rich_ests, 'Result/richness_estimators_compared.csv')
 
 
 ##################################

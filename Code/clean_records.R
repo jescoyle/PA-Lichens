@@ -136,7 +136,7 @@ projection(inv_plots) <- c('+proj=longlat')
 
 # FIA
 fia_plots <- fia_plots[,c('yrplotid','LON','LAT')]
-fia_plots = subset(fia_plots, yrplotid %in% fia_lichen$yrplotid) #146 plots
+fia_plots = subset(fia_plots, yrplotid %in% unique(fia_lichen$yrplotid)) #146 plots
 coordinates(fia_plots) = c('LON','LAT')
 projection(fia_plots) = c('+proj=longlat')
 
@@ -179,7 +179,6 @@ inv_plots = cbind(inv_plots, extract(prism, inv_plots))
 inv_plots$tot_n = extract(tot_n, inv_plots)
 inv_plots$tot_s = extract(tot_s, inv_plots)
 
-
 ## Save data
 #write.csv(fia_plots, file.path(derived_dir, 'fia_plots.csv'), row.names=F)
 #write.csv(inv_plots, file.path(derived_dir, 'inv_plots.csv'), row.names=F)
@@ -219,4 +218,7 @@ inv_prec = cut(inv_plots$ppt, seq(900, 1400, 50))
 
 sum((table(fia_prec)/length(fia_prec))[8:10])
 sum((table(inv_prec)/length(inv_prec))[8:10])
+
+
+
 

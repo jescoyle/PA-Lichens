@@ -15,7 +15,7 @@ source(file.path(code_dir, 'project_functions.R'))
 ## Read in data
 
 inv_lichen = read.csv(file.path(derived_dir, 'inv_lichens.csv'))
-fia_lichen = read.csv(file.path(derived_dir, 'fia_lichens.csv'))
+fia_lichen = read.csv(file.path(derived_dir, 'fia_lichens_matchINV.csv'))
 
 inv_plots = read.csv(file.path(derived_dir, 'inv_plots.csv'))
 fia_plots = read.csv(file.path(derived_dir, 'fia_plots.csv'))

@@ -361,8 +361,8 @@ use_col <- data_cols
 ci_trans <- '40'
 
 ## Figure 3: Rarefaction plot ##
-#pdf(file.path(fig_dir, 'Fig_3.pdf'), height=9.5, width=8)
-#svg(file.path(fig_dir, 'Fig_3.svg'), height=9.5, width=8)
+#pdf(file.path(fig_dir, 'Fig_3-rarefaction_curves.pdf'), height=9.5, width=8)
+#svg(file.path(fig_dir, 'Fig_3-rarefaction_curves.svg'), height=9.5, width=8)
 
 # Set up multipanel plot with two columns and 4 rows
 layout(matrix(c(9,10,1,2,3,4,5,6,7,8), ncol=2, byrow=T), heights=c(.5,1,1,1,1))
@@ -685,6 +685,35 @@ legend('topright', c('FIA','INV'), col=data_cols[c('FIA','INV')], pch=c(3, 1), b
 dev.off()
 
 
+## Figure S1-richness: Location of plots in climate space colored by richness
+rich_cols <- colorRampPalette(c('#ffffb2','#f03b20'))(11)
+
+
+pdf(file.path(fig_dir, 'SI/Fig_S1_rich-FIA_vs_INV_environment.pdf'), height=7, width=9)
+
+par(mar=c(4.5, 4.5, 1, 1))
+layout(matrix(1:6, nrow=2, byrow = FALSE))
+
+# Panel A: annual precip vs. mean annual temp
+make_plot(c(900, 1400), c(6, 12.5), xlab=xvarnames['ppt'], ylab=xvarnames['tmean'], xlab_loc=3, cex=0.8)
+points(tmean~ppt, data=fia_data, bg=rich_cols[cut(fia_data$S, seq(0,33,3))], pch=21)
+make_plot(c(900, 1400), c(6, 12.5), xlab=xvarnames['ppt'], ylab=xvarnames['tmean'], xlab_loc=3, cex=0.8)
+points(tmean~ppt, data=inv_data, bg=rich_cols[cut(inv_data$S_epi_macro, seq(0,33,3))], pch=22)
+
+# Panel B: max temp vs. vpd
+make_plot(c(12,18), c(7, 13), xlab=xvarnames['tmax'], ylab=xvarnames['vpdmax'], xlab_loc=3, cex=0.8)
+points(vpdmax~tmax, data=fia_data, bg=rich_cols[cut(fia_data$S, seq(0,33,3))], pch=21)
+make_plot(c(12,18), c(7, 13), xlab=xvarnames['tmax'], ylab=xvarnames['vpdmax'], xlab_loc=3, cex=0.8)
+points(vpdmax~tmax, data=inv_data, bg=rich_cols[cut(inv_data$S_epi_macro, seq(0,33,3))], pch=22)
+
+# Panel C: N vs S deposition
+make_plot(c(90, 180), c(100, 400), xlab=xvarnames['tot_n'], ylab=xvarnames['tot_s'], xlab_loc=3, cex=0.8)
+points(tot_s~tot_n, data=fia_data, bg=rich_cols[cut(fia_data$S, seq(0,33,3))], pch=21)
+make_plot(c(90, 180), c(100, 400), xlab=xvarnames['tot_n'], ylab=xvarnames['tot_s'], xlab_loc=3, cex=0.8)
+points(tot_s~tot_n, data=inv_data, bg=rich_cols[cut(inv_data$S_epi_macro, seq(0,33,3))], pch=22)
+
+dev.off()
+
 ## Figure S3: Species richness vs environment ##
 
 #pdf(file.path(fig_dir, 'SI/Fig_S3-richness_env.pdf'), height=8, width=16)
@@ -735,9 +764,6 @@ for(x in xvars){
 }
 dev.off()
 
-## Figure 4: Individual Species Distributions ##
-
-
 ## Figure S4 containing all species with at least 10 occurences in both datasets
 inv_m_comm <- inv_siteXsp['macro',,]
 inv_m_comm <- inv_m_comm[,colSums(inv_m_comm)>=10]
@@ -754,6 +780,9 @@ inv_data <- cbind(inv_data, inv_sp[as.character(inv_data$Site_Number),])
 # Save data tables
 #write.csv(fia_data, file.path(derived_dir, "fia_plot_data.csv"), row.names = FALSE)
 #write.csv(inv_data, file.path(derived_dir, "inv_plot_data.csv"), row.names = FALSE)
+
+fia_data <- read.csv(file.path(derived_dir, "fia_plot_data.csv"))
+inv_data <- read.csv(file.path(derived_dir, "inv_plot_data.csv"))
 
 # Define tansparency for CI and data points
 ci_trans <- '50'
@@ -809,6 +838,7 @@ for(sp in focal_names){
 }
 dev.off()
 
+## Figure 4: Individual Species Distributions ##
 # Focus on subset of these species and variables for main figure in manuscript
 focal_sp <- c('Hypogymnia physodes','Physcia millegrana','Usnocetraria oakesiana','Flavoparmelia caperata')
 focal_names <- sapply(focal_sp, function(x) paste(unlist(strsplit(x, ' ')), collapse='_'))
@@ -817,7 +847,7 @@ use_xvars <- c('vpdmax','tmean','tot_n','tot_s')
 
 
 
-#pdf(file.path(paper_dir, 'Fig_4-species_env_distributions.pdf'), height=8.5, width=10)
+#pdf(file.path(fig_dir, 'Fig_4-species_env_distributions.pdf'), height=8.5, width=10)
 #svg(file.path(fig_dir, 'Fig_4-species_env_distributions.svg'), height=8.5, width=10)
 
 par(lend=1)
@@ -1012,10 +1042,10 @@ compare_ef = data.frame(FIA_r2 = c(fia_ef$vectors$r, fia_ef$factors$r), FIA_P = 
 )
 
 # Add rows with info on NMDS
-compare_ef <- rbind(compare_ef, stress = c(fia_mds$stress, inv_e_mds$stress, inv_em_mds$stress))
-compare_ef <- rbind(compare_ef, dimensions = c(fia_mds$ndim, inv_e_mds$ndim, inv_em_mds$ndim))
-compare_ef <- rbind(compare_ef, nsites = c(fia_mds$nobj, inv_e_mds$nobj, inv_em_mds$nobj))
-compare_ef <- rbind(compare_ef, ntaxa = c(ncol(fia_comm), ncol(inv_e_comm), ncol(inv_em_comm)))
+compare_ef <- rbind(compare_ef, stress = rep(c(fia_mds$stress, inv_e_mds$stress, inv_em_mds$stress), each = 2))
+compare_ef <- rbind(compare_ef, dimensions = rep(c(fia_mds$ndim, inv_e_mds$ndim, inv_em_mds$ndim), each = 2))
+compare_ef <- rbind(compare_ef, nsites = rep(c(fia_mds$nobj, inv_e_mds$nobj, inv_em_mds$nobj), each = 2))
+compare_ef <- rbind(compare_ef, ntaxa = rep(c(ncol(fia_comm), ncol(inv_e_comm), ncol(inv_em_comm)), each = 2))
 
 
 # Save the table depending on whether NMDS was performed on a reduced INV data set (subsampled) or not

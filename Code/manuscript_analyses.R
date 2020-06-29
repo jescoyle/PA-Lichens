@@ -555,9 +555,9 @@ em_sp <- em_sp[em_sp > 0]
 macro_sp <- colSums(inv_siteXsp['macro', , dimnames(inv_siteXsp)[[3]] %in% keep_taxa])
 macro_sp <- macro_sp[macro_sp > 0]
 
-both <- names(fia_sp)[names(fia_sp) %in% names(macro_sp)]
-fia <- names(fia_sp)[!(names(fia_sp) %in% names(macro_sp))]
-inv <- names(em_sp)[!names(em_sp) %in% names(fia_sp)]
+both <- names(fia_sp)[names(fia_sp) %in% names(macro_sp)]; length(both)
+fia <- names(fia_sp)[!(names(fia_sp) %in% names(macro_sp))]; length(fia)
+inv <- names(em_sp)[!names(em_sp) %in% names(fia_sp)]; length(inv)
 
 both_not_epi <- both[!both %in% names(em_sp)]
 

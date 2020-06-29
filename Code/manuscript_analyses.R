@@ -657,6 +657,9 @@ inv_data <- inv_data[, -ncol(inv_data)] # drop column added from spatial datafra
 #write.csv(fia_data, file.path(derived_dir, "fia_plot_data.csv"), row.names = FALSE)
 #write.csv(inv_data, file.path(derived_dir, "inv_plot_data.csv"), row.names = FALSE)
 
+fia_data <- read.csv(file.path(derived_dir, "fia_plot_data.csv"))
+inv_data <- read.csv(file.path(derived_dir, "inv_plot_data.csv"))
+
 ## Figure S1: Location of plots in climate space
 
 #pdf(file.path(fig_dir, 'SI/Fig_S1-FIA_vs_INV_environment.pdf'), height=3.5, width=9)
@@ -716,7 +719,11 @@ dev.off()
 
 ## Figure S3: Species richness vs environment ##
 
+mod_table <- matrix(NA, nrow = 3, ncol = length(xvars), 
+                    dimnames = list(c('FIA', 'INV_em', 'INV_all'), xvars))
+
 #pdf(file.path(fig_dir, 'SI/Fig_S3-richness_env.pdf'), height=8, width=16)
+#svg(file.path(fig_dir, 'SI/Fig_S3-richness_env.svg'), height=8, width=16)
 layout(matrix(1:(3*length(xvars)), nrow=3, byrow=F))
 par(mar=c(1.5,1.5,1,1))
 par(oma=c(3,4.5,0,0))
@@ -732,9 +739,16 @@ for(x in xvars){
 	names(xvals) <- x
 	mod <- gam(bquote(S~s(.(as.name(x)))), data=fia_data, family=nb(link='log'))
 	pred <- predict(mod, newdata=xvals, type='response', se.fit=T)
-	lines(xvals[,1], pred$fit, col=2)
-	lines(xvals[,1], pred$fit + pred$se.fit*2, col=2, lty=2)
-	lines(xvals[,1], pred$fit - pred$se.fit*2, col=2, lty=2)
+	pval <- summary(mod)$s.table[1,"p-value"]
+	polygon(c(xvals[,1], rev(xvals[,1])), c(pred$fit-2*pred$se.fit, rev(pred$fit+2*pred$se.fit)),
+	        col="#FF000040", border=NA)
+	use_lty <- ifelse(pval < 0.05, 1, 3)
+	lines(xvals[,1], pred$fit, col=2, lty = use_lty, lwd = 2)
+	mod_table['FIA', x] <- pval
+	dev.expl <- summary(mod)$dev.expl 
+	mtext(ifelse(dev.expl < 0.001, "<0.001", format(dev.expl, digits=2)),
+	             3, 0, col=2, adj=.05, line = -1.5)
+	
 
 	# Plot INV epiphytic macrolichen richness vs env
 	plot(inv_data[,x], inv_data$S_epi_macro, las=1, xlim=use_xlim, xlab='', ylab='')
@@ -745,9 +759,15 @@ for(x in xvars){
 	names(xvals) <- x
 	mod <- gam(bquote(S_epi_macro~s(.(as.name(x)))), data=inv_data, family=nb(link='log'))
 	pred <- predict(mod, newdata=xvals, type='response', se.fit=T)
-	lines(xvals[,1], pred$fit, col=2)
-	lines(xvals[,1], pred$fit + pred$se.fit*2, col=2, lty=2)
-	lines(xvals[,1], pred$fit - pred$se.fit*2, col=2, lty=2)	
+	pval <- summary(mod)$s.table[1,"p-value"]
+	polygon(c(xvals[,1], rev(xvals[,1])), c(pred$fit-2*pred$se.fit, rev(pred$fit+2*pred$se.fit)),
+	        col="#FF000040", border=NA)
+	use_lty <- ifelse(pval < 0.05, 1, 3)
+	lines(xvals[,1], pred$fit, col=2, lty = use_lty, lwd = 2)
+	mod_table['INV_em', x] <- pval
+	dev.expl <- summary(mod)$dev.expl 
+	mtext(ifelse(dev.expl < 0.001, "<0.001", format(dev.expl, digits=2)),
+	      3, 0, col=2, adj=.05, line = -1.5)	
 
 	# Plot INV all species richness vs env
 	plot(inv_data[,x], inv_data$S_epi, las=1, xlim=use_xlim)
@@ -757,12 +777,20 @@ for(x in xvars){
 	# Add GAM lines and 2*SE lines
 	mod <- gam(bquote(S_epi~s(.(as.name(x)))), data=inv_data, family=nb(link='log'))
 	pred <- predict(mod, newdata=xvals, type='response', se.fit=T)
-	lines(xvals[,1], pred$fit, col=2)
-	lines(xvals[,1], pred$fit + pred$se.fit*2, col=2, lty=2)
-	lines(xvals[,1], pred$fit - pred$se.fit*2, col=2, lty=2)
+	pval <- summary(mod)$s.table[1,"p-value"]
+	polygon(c(xvals[,1], rev(xvals[,1])), c(pred$fit-2*pred$se.fit, rev(pred$fit+2*pred$se.fit)),
+	        col="#FF000040", border=NA)
+	use_lty <- ifelse(pval < 0.05, 1, 3)
+	lines(xvals[,1], pred$fit, col=2, lty = use_lty, lwd = 2)
+	mod_table['INV_all', x] <- pval
+	dev.expl <- summary(mod)$dev.expl 
+	mtext(ifelse(dev.expl < 0.001, "<0.001", format(dev.expl, digits=2)),
+	      3, 0, col=2, adj=.05, line = -1.5)	
 
 }
 dev.off()
+
+#write.csv(mod_table, file.path(results_dir, "richness_GAM_p-values.csv"), row.names = FALSE)
 
 ## Figure S4 containing all species with at least 10 occurences in both datasets
 inv_m_comm <- inv_siteXsp['macro',,]
@@ -1018,7 +1046,7 @@ inv_em_mds = metaMDS(inv_em_comm, distance='bray', k=6, autotransform=F, trymax=
 
 # USE THIS ONE
 inv_em_mds = metaMDS(inv_em_comm, distance='bray', k=7, autotransform=F, trymax=500, maxit=1000)
-# dimension = 7, no convergence
+# dimension = 7, stress = 0.071
 
 inv_em_ef = envfit(inv_em_mds, inv_data[rownames(inv_em_comm), c(xvars,'L2NAME')], choices=1:4)
 #inv_em_surf = sapply(xvars, function(x){

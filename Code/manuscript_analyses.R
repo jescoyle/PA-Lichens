@@ -716,6 +716,7 @@ inv_data <- inv_data[, -ncol(inv_data)] # drop column added from spatial datafra
 #write.csv(fia_data, file.path(derived_dir, "fia_plot_data.csv"), row.names = FALSE)
 #write.csv(inv_data, file.path(derived_dir, "inv_plot_data.csv"), row.names = FALSE)
 
+# Read back in previously saved data
 fia_data <- read.csv(file.path(derived_dir, "fia_plot_data.csv"))
 inv_data <- read.csv(file.path(derived_dir, "inv_plot_data.csv"))
 
@@ -927,7 +928,7 @@ dev.off()
 
 ## Figure 4: Individual Species Distributions ##
 # Focus on subset of these species and variables for main figure in manuscript
-focal_sp <- c('Hypogymnia physodes','Physcia millegrana','Usnocetraria oakesiana','Flavoparmelia caperata')
+focal_sp <- c('Hypogymnia physodes','Parmelia sulcata','Punctelia caseana','Flavoparmelia caperata')
 focal_names <- sapply(focal_sp, function(x) paste(unlist(strsplit(x, ' ')), collapse='_'))
 
 use_xvars <- c('vpdmax','tmean','tot_n','tot_s')

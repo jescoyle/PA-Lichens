@@ -872,6 +872,10 @@ inv_data <- cbind(inv_data, inv_sp[as.character(inv_data$Site_Number),])
 fia_data <- read.csv(file.path(derived_dir, "fia_plot_data.csv"))
 inv_data <- read.csv(file.path(derived_dir, "inv_plot_data.csv"))
 
+# Create table for saving environmental model stats
+env_mods <- array(NA, dim = c(length(focal_names), length(xvars), 2, 3), 
+                  dimnames = list(focal_names, xvars, c('FIA', 'INV'), c('dev.expl','edf','p')))
+
 # Define tansparency for CI and data points
 ci_trans <- '50'
 rug_trans <- '90'
@@ -888,6 +892,10 @@ for(sp in focal_names){
     
     fia_mod <- gam(bquote(.(as.name(sp)) ~ s(.(as.name(x)), k=4)), data=fia_data, family=binomial(link='logit'))
     inv_mod <- gam(bquote(.(as.name(sp)) ~ s(.(as.name(x)), k=4)), data=inv_data, family=binomial(link='logit'))
+    
+    # save models parameters
+    env_mods[sp, x, 'FIA',] <- with(summary(fia_mod), c(dev.expl, edf, s.pv))
+    env_mods[sp, x, 'INV',] <- with(summary(inv_mod), c(dev.expl, edf, s.pv))
     
     xrange <- range(c(fia_data[,x], inv_data[,x]))
     
@@ -925,6 +933,8 @@ for(sp in focal_names){
   }
 }
 dev.off()
+
+env_mods[,,,'edf']
 
 ## Figure 4: Individual Species Distributions ##
 # Focus on subset of these species and variables for main figure in manuscript

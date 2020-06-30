@@ -180,6 +180,7 @@ inv_plots <- cbind(inv_plots, inv_S[as.character(inv_plots$Site_Number),])
 #save(fia_splist, inv_splist, fia_splist_nogenus, inv_splist_nogenus, 
 #     file = file.path(results_dir, "species_lists.RData"))
 
+load(file.path(results_dir, "species_lists.RData"))
 
 ## Table 1: Description of Datasets
 
@@ -202,6 +203,34 @@ env_cols <- colorRampPalette(c('grey95','grey10'))(50)
 reg_cols <- c('white','grey80', 'grey60','grey40','grey20')
 reg_accs <- c('AH','MWP','OAF','SP'); names(reg_accs) <- regions
 
+# Spatial summary grids of plot-level richness
+lat_bins <- seq(39.5, 42, 0.5)
+nlatbins <- length(lat_bins)-1
+lon_bins <- seq(-81, -75, 1)
+nlonbins <- length(lon_bins)-1
+lat_points <- SpatialPoints(cbind(rep(-74.4, nlatbins), (lat_bins+0.25)[1:nlatbins]),
+                            proj4string = CRS('+proj=longlat +ellps=WGS84'))
+lat_grid <- SpatialPixels(lat_points)
+lat_grid@grid@cellsize[1] <- 0.5
+lon_points <- SpatialPoints(cbind((lon_bins + 0.5)[1:nlonbins], lat = rep(42.4, nlonbins)),
+                            proj4string = CRS('+proj=longlat +ellps=WGS84'))
+lon_grid <- SpatialPixels(lon_points)
+lon_grid@grid@cellsize[2] <- 0.2
+
+S_means_lat <- data.frame(lat = (lat_bins+0.25)[1:nlatbins],
+                          FIA_lat = tapply(fia_plots$S, cut(fia_plots@coords[,"LAT"], breaks = lat_bins), mean),
+                          INV_all_lat = tapply(inv_plots$S_all, cut(inv_plots@coords[,"DarLatitude"], breaks = lat_bins), mean),
+                          INV_m_lat = tapply(inv_plots$S_macro, cut(inv_plots@coords[,"DarLatitude"], breaks = lat_bins), mean),
+                          INV_em_lat = tapply(inv_plots$S_epi_macro, cut(inv_plots@coords[,"DarLatitude"], breaks = lat_bins), mean)
+                          )
+S_means_lon <- data.frame(lat = rep(42.5, nlonbins),
+                          FIA_lon = tapply(fia_plots$S, cut(fia_plots@coords[,"LON"], breaks = lon_bins), mean),
+                          INV_all_lon = tapply(inv_plots$S_all, cut(inv_plots@coords[,"DarLongitude"], breaks = lon_bins), mean),
+                          INV_m_lon = tapply(inv_plots$S_macro, cut(inv_plots@coords[,"DarLongitude"], breaks = lon_bins), mean),
+                          INV_em_lon = tapply(inv_plots$S_epi_macro, cut(inv_plots@coords[,"DarLongitude"], breaks = lon_bins), mean)
+)
+
+
 # Add background environment and ecoregions from FIA and INV plots to maps
 reg_lines <- list('sp.polygons',eco_L2, col='black', lwd=2, first=F)
 reg_labels <- list('sp.text', cbind(c(-78.5, -75.5, -80.2, -76, -78.5, -76.5), c(41.7, 41.1, 41.7, 41.7, 40.5, 40)), reg_accs[c(1,1,2,2,3,4)], col='black', font=2)	
@@ -217,21 +246,36 @@ inv_plots <- inv_plots[order(inv_plots$S_epi_macro),]
 
 # Panel A: FIA + VPD
 #svg(file.path(fig_dir, 'Fig_1A-FIA+VPD.svg'), height=4, width=6)
-use_layout <- list(reg_lines, fia_S_points, reg_labels)
+color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$FIA_lat)), 
+                  col=rich_cols, at=seq(0,33,3)) 
+color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$FIA_lon)),
+                  col=rich_cols, at=seq(0,33,3))
+S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$FIA_lat, 1), cex = 0.8)
+S_lon <- list('sp.text', lon_points@coords, round(S_means_lon$FIA_lon, 1), cex = 0.8)
+use_layout <- list(reg_lines, fia_S_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
+
 spplot(vpd_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
-	main=list(expression(Max.~VPD~(kPa)), font=1, cex=1)
+	#main=list(expression(Max.~VPD~(kPa)), font=1, cex=1),
+	xlim = c(-81, -74.2)
 )
 dev.off()
 
 # Panel B: INV + N Deposition
 #svg(file.path(fig_dir, 'Fig_1B-INV+Ndep.svg'), height=4, width=6)
-use_layout <- list(reg_lines, inv_S_em_points, reg_labels)
+color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_em_lat)), 
+                  col=rich_cols, at=seq(0,33,3)) 
+color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_em_lon)),
+                  col=rich_cols, at=seq(0,33,3))
+S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_em_lat, 1), cex = 0.8)
+S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_em_lon, 1)[2:6], cex = 0.8)
+use_layout <- list(reg_lines, inv_S_em_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
 spplot(totN_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
-	main=list(expression(Total~N~Deposition~(kg~ha^-1)), font=1, cex=1) #, useRaster=T
+	#main=list(expression(Total~N~Deposition~(kg~ha^-1)), font=1, cex=1),
+	xlim = c(-81, -74.2)
 )
 dev.off()
 
@@ -248,12 +292,19 @@ inv_S_m_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_mac
 
 # Panel C: INV Macrolichens + Annual precip
 #svg(file.path(fig_dir, 'Fig_1C-INVmacro+AP.svg'), height=4, width=6)
+color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_m_lat)), 
+                  col=rich_cols, at=seq(0,110,10)) 
+color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_m_lon)),
+                  col=rich_cols, at=seq(0,110,10))
+S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_m_lat, 1), cex = 0.8)
+S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_m_lon, 1)[2:6], cex = 0.8)
 par(mar=c(3,4,5,0))
-use_layout <- list(reg_lines, inv_S_m_points, reg_labels)
+use_layout <- list(reg_lines, inv_S_m_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
 spplot(ap_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
-	main=list(expression(Annual~Precip.~(mm)), font=1, cex=1) #, useRaster=T
+	#main=list(expression(Annual~Precip.~(mm)), font=1, cex=1),
+	xlim = c(-81, -74.2)
 )
 dev.off()
 
@@ -263,17 +314,25 @@ inv_S_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_all, 
 
 # Panel D: INV All lichens +  S deposition
 #svg(file.path(fig_dir, 'Fig_1D-INVall+Sdep.svg'), height=4, width=6)
-par(mar=c(3,4,5,0))
-use_layout <- list(reg_lines, inv_S_points, reg_labels)
+color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_all_lat)), 
+                  col=rich_cols, at=seq(0,110,10)) 
+color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_all_lon)),
+                  col=rich_cols, at=seq(0,110,10))
+S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_all_lat, 1), cex = 0.8)
+S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_all_lon, 1)[2:6], cex = 0.8)
+
+use_layout <- list(reg_lines, inv_S_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
 spplot(totS_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
-	main=list(expression(Total~S~Deposition~(kg~ha^-1)), font=1, cex=1) #, useRaster=T
+	#main=list(expression(Total~S~Deposition~(kg~ha^-1)), font=1, cex=1),
+	xlim = c(-81, -74.2)
 )
 dev.off()
 
 # Species Richnesss key for C and D
 #svg(file.path(fig_dir, 'Fig_1CD-colorbar.svg'), height=6, width=6)
+par(mar=c(3,4,5,0))
 plot.new()
 plotColorRamp(rich_cols, 11, c(.5, .1, .6, .9), labels=seq(0,110,10), title='Number of Species', horiz=F, ndig=0, side=2)
 dev.off()

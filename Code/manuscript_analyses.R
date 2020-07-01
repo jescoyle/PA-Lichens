@@ -934,24 +934,31 @@ for(sp in focal_names){
 }
 dev.off()
 
-env_mods[,,,'edf']
+# Examine linearity vs. modality
+round(env_mods[,,'FIA','edf'],1)
+round(env_mods[,,'INV','edf'],1)
+
+# Examine deviance explained
+round(env_mods[,,'FIA','dev.expl'],3) > 0.05
+round(env_mods[,,'INV','dev.expl'],3) > 0.05
+          
 
 ## Figure 4: Individual Species Distributions ##
 # Focus on subset of these species and variables for main figure in manuscript
-focal_sp <- c('Hypogymnia physodes','Parmelia sulcata','Punctelia caseana','Flavoparmelia caperata')
+focal_sp <- c('Hypogymnia physodes', 'Myelochroa aurulenta','Parmelia sulcata','Punctelia caseana')
 focal_names <- sapply(focal_sp, function(x) paste(unlist(strsplit(x, ' ')), collapse='_'))
 
 use_xvars <- c('vpdmax','tmean','tot_n','tot_s')
-
+#use_xvars <- xvars
 
 
 #pdf(file.path(fig_dir, 'Fig_4-species_env_distributions.pdf'), height=8.5, width=10)
 #svg(file.path(fig_dir, 'Fig_4-species_env_distributions.svg'), height=8.5, width=10)
 
-par(lend=1)
-par(mfrow=c(length(focal_names), length(use_xvars)))
-par(mar=c(3, 3, 2.5, 1))
-par(oma=c(2, 8, 0, 0))
+par(lend = 1)
+par(mfrow = c(length(focal_names), length(use_xvars)))
+par(mar = c(3, 3, 2.5, 1))
+par(oma = c(2, 2, 0, 0))
 
 for(sp in focal_names){
   for(x in use_xvars){
@@ -963,7 +970,7 @@ for(sp in focal_names){
     xrange <- range(c(fia_data[,x], inv_data[,x]))
     
     # FIA
-    make_plot(xrange, c(0,1), xlab=ifelse(counter%%length(use_xvars)==0, xvarnames[x], ''), cex=.8)
+    make_plot(xrange, c(0,1), xlab = ifelse(counter == length(focal_names), xvarnames[x], ''), cex = 0.8)
     points(fia_data[,x], fia_data[,sp], pch='|', col=paste0(data_cols['FIA'], rug_trans))
     xvals <- data.frame(seq(min(fia_data[,x]), max(fia_data[,x]), length.out=100))
     names(xvals) <- x
@@ -989,11 +996,12 @@ for(sp in focal_names){
     if(x==use_xvars[1]){
       mtext('Prob. occurence', 2, 2.5, cex=0.8)	
       par(xpd=NA)
-      add_panel_label(counter, add_sym=paste(')', focal_sp[counter]), x=-.1, y=.99)
+      add_panel_label(counter, add_sym=paste(')', focal_sp[counter]), x=-.1, y=.99, cex = 1.2)
       par(xpd=F)
     }
   }
 }
+
 dev.off()
 
 

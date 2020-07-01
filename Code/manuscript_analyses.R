@@ -198,7 +198,7 @@ table1$Total_Lichens <- c(length(get_species(fia_lichen$Binomial)), length(get_s
 
 ## Figure 1: Map of Species Richness with Environmental Layers ##
 
-rich_cols <- colorRampPalette(c('#ffffb2','#f03b20'))(11)
+
 env_cols <- colorRampPalette(c('grey95','grey10'))(50)
 reg_cols <- c('white','grey80', 'grey60','grey40','grey20')
 reg_accs <- c('AH','MWP','OAF','SP'); names(reg_accs) <- regions
@@ -234,18 +234,24 @@ S_means_lon <- data.frame(lat = rep(42.5, nlonbins),
 # Add background environment and ecoregions from FIA and INV plots to maps
 reg_lines <- list('sp.polygons',eco_L2, col='black', lwd=2, first=F)
 reg_labels <- list('sp.text', cbind(c(-78.5, -75.5, -80.2, -76, -78.5, -76.5), c(41.7, 41.1, 41.7, 41.7, 40.5, 40)), reg_accs[c(1,1,2,2,3,4)], col='black', font=2)	
-fia_S_points <- list('sp.points', fia_plots, col=rich_cols[cut(fia_plots$S, seq(0,33,3), include.lowest=T)], pch=16, cex=1.1)
-inv_S_em_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_epi_macro, seq(0,33,3), include.lowest=T)], pch=16, cex=1.1)	
 
 # Layout settings
 #lattice_pars = list(layout.widths=list(key.right=10))
 
+## Species Richnesss key for A and B
+rich_cols <- colorRampPalette(c('#ffffb2','#f03b20'))(11)
+
+#svg(file.path(fig_dir, 'Fig_1AB-colorbar.svg'), height=6, width=6, bg="transparent")
+plot.new()
+plotColorRamp(rich_cols, 11, c(.5, .1, .6, .9), labels=seq(0,33,3), title='Number of Species', horiz=F, ndig=0, side=2)
+dev.off()
+
+## Panel A: FIA + VPD
 # Order points by richness so that highest richness occurs on top
 fia_plots <- fia_plots[order(fia_plots$S),]
-inv_plots <- inv_plots[order(inv_plots$S_epi_macro),]
 
-# Panel A: FIA + VPD
-#svg(file.path(fig_dir, 'Fig_1A-FIA+VPD.svg'), height=4, width=6)
+# Layout plot
+fia_S_points <- list('sp.points', fia_plots, col=rich_cols[cut(fia_plots$S, seq(0,33,3), include.lowest=T)], pch=16, cex=1.1)
 color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$FIA_lat)), 
                   col=rich_cols, at=seq(0,33,3)) 
 color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$FIA_lon)),
@@ -254,6 +260,7 @@ S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$FIA_lat, 1), cex =
 S_lon <- list('sp.text', lon_points@coords, round(S_means_lon$FIA_lon, 1), cex = 0.8)
 use_layout <- list(reg_lines, fia_S_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
 
+#svg(file.path(fig_dir, 'Fig_1A-FIA+VPD.svg'), height=4, width=6, bg="transparent")
 spplot(vpd_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
@@ -262,8 +269,12 @@ spplot(vpd_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 )
 dev.off()
 
-# Panel B: INV + N Deposition
-#svg(file.path(fig_dir, 'Fig_1B-INV+Ndep.svg'), height=4, width=6)
+## Panel B: INV + N Deposition
+# Order points by richness so that highest richness occurs on top
+inv_plots <- inv_plots[order(inv_plots$S_epi_macro),]
+
+# Layout plot
+inv_S_em_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_epi_macro, seq(0,33,3), include.lowest=T)], pch=16, cex=1.1)	
 color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_em_lat)), 
                   col=rich_cols, at=seq(0,33,3)) 
 color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_em_lon)),
@@ -271,6 +282,8 @@ color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means
 S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_em_lat, 1), cex = 0.8)
 S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_em_lon, 1)[2:6], cex = 0.8)
 use_layout <- list(reg_lines, inv_S_em_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
+
+#svg(file.path(fig_dir, 'Fig_1B-INV+Ndep.svg'), height=4, width=6, bg="transparent")
 spplot(totN_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
@@ -279,27 +292,30 @@ spplot(totN_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 )
 dev.off()
 
-# Species Richnesss key for A and B
-#svg(file.path(fig_dir, 'Fig_1AB-colorbar.svg'), height=6, width=6)
+## Species Richnesss key for C
+rich_cols <- colorRampPalette(c('#ffffb2','#f03b20'))(10)
+
+#svg(file.path(fig_dir, 'Fig_1C-colorbar.svg'), height=6, width=6, bg="transparent")
 plot.new()
-plotColorRamp(rich_cols, 11, c(.5, .1, .6, .9), labels=seq(0,33,3), title='Number of Species', horiz=F, ndig=0, side=2)
+plotColorRamp(rich_cols, 10, c(.5, .1, .6, .9), labels=seq(0,60,6), title='Number of Species', horiz=F, ndig=0, side=2)
 dev.off()
 
-
+## Panel C: INV Macrolichens + Annual precip
 # Order points by richness so that highest richness occurs on top
 inv_plots <- inv_plots[order(inv_plots$S_macro),]
-inv_S_m_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_macro, seq(0,110,10), include.lowest=T)], pch=16, cex=1.1)	
 
-# Panel C: INV Macrolichens + Annual precip
-#svg(file.path(fig_dir, 'Fig_1C-INVmacro+AP.svg'), height=4, width=6)
+# Layout plot
+inv_S_m_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_macro, seq(0,60,6), include.lowest=T)], pch=16, cex=1.1)	
 color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_m_lat)), 
-                  col=rich_cols, at=seq(0,110,10)) 
+                  col=rich_cols, at=seq(0,60,6)) 
 color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_m_lon)),
-                  col=rich_cols, at=seq(0,110,10))
+                  col=rich_cols, at=seq(0,60,6))
 S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_m_lat, 1), cex = 0.8)
 S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_m_lon, 1)[2:6], cex = 0.8)
 par(mar=c(3,4,5,0))
 use_layout <- list(reg_lines, inv_S_m_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
+
+#svg(file.path(fig_dir, 'Fig_1C-INVmacro+AP.svg'), height=4, width=6, bg="transparent")
 spplot(ap_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
@@ -308,12 +324,12 @@ spplot(ap_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 )
 dev.off()
 
+## Panel D: INV All lichens +  S deposition
 # Order points by richness so that highest richness occurs on top
 inv_plots <- inv_plots[order(inv_plots$S_all),]
-inv_S_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_all, seq(0,110,10), include.lowest=T)], pch=16, cex=1.1)	
 
-# Panel D: INV All lichens +  S deposition
-#svg(file.path(fig_dir, 'Fig_1D-INVall+Sdep.svg'), height=4, width=6)
+# Layout plot
+inv_S_points <- list('sp.points', inv_plots, col=rich_cols[cut(inv_plots$S_all, seq(0,110,10), include.lowest=T)], pch=16, cex=1.1)	
 color_lat <- list('sp.grid', SpatialPixelsDataFrame(lat_grid, data.frame(S_means_lat$INV_all_lat)), 
                   col=rich_cols, at=seq(0,110,10)) 
 color_lon <- list('sp.grid', SpatialPixelsDataFrame(lon_grid, data.frame(S_means_lon$INV_all_lon)),
@@ -322,6 +338,8 @@ S_lat <- list('sp.text', lat_points@coords, round(S_means_lat$INV_all_lat, 1), c
 S_lon <- list('sp.text', lon_points@coords[2:6,], round(S_means_lon$INV_all_lon, 1)[2:6], cex = 0.8)
 
 use_layout <- list(reg_lines, inv_S_points, reg_labels, color_lat, color_lon, S_lat, S_lon)
+
+#svg(file.path(fig_dir, 'Fig_1D-INVall+Sdep.svg'), height=4, width=6, bg="transparent")
 spplot(totS_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 	#par.settings=list(axis.line = list(col = 'transparent')),
 	colorkey=list(height=0.8), scales=list(draw=T),
@@ -331,7 +349,7 @@ spplot(totS_PA, col.regions=env_cols, cuts=49, sp.layout=use_layout,
 dev.off()
 
 # Species Richnesss key for C and D
-#svg(file.path(fig_dir, 'Fig_1CD-colorbar.svg'), height=6, width=6)
+#svg(file.path(fig_dir, 'Fig_1CD-colorbar.svg'), height=6, width=6, bg="transparent")
 par(mar=c(3,4,5,0))
 plot.new()
 plotColorRamp(rich_cols, 11, c(.5, .1, .6, .9), labels=seq(0,110,10), title='Number of Species', horiz=F, ndig=0, side=2)
